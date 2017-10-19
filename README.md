@@ -5,6 +5,8 @@ cJSON is used directly in this project (contrib/cJSON.c, include/contrib/cJSON.h
 
 Compile using
 ```
+autoreconf -i
+./configure
 make
 ```
 
@@ -15,7 +17,7 @@ make check
 
 Clean up using
 ```
-make clean
+make distclean
 ```
 
 ## You should know before contributing

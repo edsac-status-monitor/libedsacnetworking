@@ -9,14 +9,3 @@
 
 // functions
 
-// unit tests
-#ifdef TEST
-
-#include <stdlib.h> // EXIT_*
-int main(void) {
-    // run all unit tests
-
-    return EXIT_FAILURE;
-}
-
-#endif // TEST

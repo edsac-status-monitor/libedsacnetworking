@@ -33,13 +33,3 @@ bool say_hello(void) {
     return false;
 }
 
-// pretend unit test
-#ifdef TEST
-#include <stdlib.h> // EXIT_*
-int main(void) {
-    if (say_hello())
-        return EXIT_SUCCESS;
-    else
-        return EXIT_FAILURE;
-}
-#endif // TEST

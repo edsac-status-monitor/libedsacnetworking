@@ -14,7 +14,6 @@ extern "C" {
 #endif // _cplusplus
 
 // includes
-#include<stdbool.h>
 
 // declarations
 
