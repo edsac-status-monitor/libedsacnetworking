@@ -11,6 +11,8 @@ AC_INIT([libnetworking], [0.0.1], [tde1g14 soton ac uk])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
 
+AC_USE_SYSTEM_EXTENSIONS
+
 # sanity check. At least this should exist
 AC_CONFIG_SRCDIR([./src/contrib/cJSON.c])
 
