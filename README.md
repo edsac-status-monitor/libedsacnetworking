@@ -19,8 +19,3 @@ Clean up using
 ```
 make distclean
 ```
-
-## You should know before contributing
-Unit tests are done in a weird-ish way. Inside each .c file there should be unit tests wrapped in #ifdef TEST. These unit tests should include a main() function.
-
-The contents of this repository are free software: distributed under MIT licencing.
