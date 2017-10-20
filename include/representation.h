@@ -36,7 +36,7 @@ typedef struct {
 // software error message
 #define MAX_MSG_LEN 200 // maximum allowable length for SoftErrorData.message
 typedef struct {
-    const char *message; // message to be reported to the UI
+    char *message; // message to be reported to the UI
 } SoftErrorData;
 
 // combined representation of the data sections
@@ -64,9 +64,6 @@ ssize_t encode_message(const ErrorMessage *message, char **encoded_message);
 // function to decode a message. 
 // Returns success or failure
 bool decode_message(const char* encoded_message, ErrorMessage *message);
-
-// frees an ErrorMessage structure (currently we only worry about message.data.software.message)
-void free_message(ErrorMessage *message);
 
 // internals
 #define DATA_FORMAT_VERSION 1.0
