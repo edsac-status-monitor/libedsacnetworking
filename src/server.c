@@ -394,6 +394,17 @@ bool start_server(const struct sockaddr *addr, socklen_t addrlen) {
     return true;
 }
 
+BufferItem *read_message(void) {
+    if (0 != pthread_mutex_lock(&read_buff_mux))
+        return NULL;
+
+    BufferItem *ret = (BufferItem *) g_queue_pop_head(read_buff);
+
+    pthread_mutex_unlock(&read_buff_mux);
+
+    return ret;
+}
+
 // free a BufferItem (wrapper function incase it contains anyting that needs freeing interneally)
 void free_bufferitem(BufferItem *item) {
     free(item);

@@ -50,6 +50,10 @@ struct sockaddr *alloc_addr(const char *addr, uint16_t port);
 // returns success
 bool start_server(const struct sockaddr *addr, socklen_t addrlen);
 
+// read in an error message from the queue
+// returns NULL immediately if there is no message to read in
+BufferItem *read_message(void);
+
 // stop the server safely
 void stop_server(void);
 
