@@ -1,6 +1,6 @@
 /*
  * Copyright 2017
- * MIT Licence
+ * MIT Licensed
  * template.h
  * A description should go here
  */

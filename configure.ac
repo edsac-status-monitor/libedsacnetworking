@@ -34,6 +34,12 @@ AC_PROG_AWK
 AC_PROG_RANLIB
 AM_PROG_AR
 
+# check GLIB is installed
+PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.32])
+
+# pthreads
+AX_PTHREAD()
+
 # Checks for header files.
 AC_CHECK_HEADERS([float.h limits.h locale.h stddef.h stdlib.h string.h])
 
