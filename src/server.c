@@ -27,6 +27,8 @@
 static GQueue *read_buff = NULL;
 static pthread_mutex_t read_buff_mux = PTHREAD_MUTEX_INITIALIZER;
 
+static pthread_mutex_t reading_mux = PTHREAD_MUTEX_INITIALIZER;
+
 // the listening socket
 static int listen_socket = -1;
 
@@ -75,19 +77,24 @@ static ReadStatus read_json_object(int fd, GString **out_string) {
         g_string_free(string, true);
 
         // if it looks like there just wasn't any data left in the buffer for us to read
-        if ((EAGAIN == e) || (EWOULDBLOCK == e) || (0 == num_read)) {
+        if ((EBADF == e) || (EAGAIN == e) || (EWOULDBLOCK == e) || (0 == num_read)) {
             return END;
         }
         
         // there was data but an error occured
+        printf("Unknown error errno=%i num_read=%li\n", e, num_read);
         return ERROR;
     }
 
     // the first character must be {
     if (buf != '{') {
         g_string_free(string, true);
-        if ((buf == '\n') || (buf == 13)) // ignore newline characters so we can telnet in for testing
+
+        // ignore newline characters so we can telnet in for testing
+        if ((buf == '\n') || (buf == 13)) { 
+            puts("newline");
             return read_json_object(fd, out_string);
+        }
 
         printf("invalid c=%i\n", (int) buf);
         return ERROR;
@@ -140,24 +147,38 @@ static ReadStatus fetch_item(int fd) {
         return ERROR;
     }
 
+    // get access to the fd
+    if (0 != pthread_mutex_lock(&reading_mux))
+        return ERROR;
+
     // attempt to read in the json object
     GString *obj;
     ReadStatus status = read_json_object(fd, &obj);
     if (SUCCESS != status) {
         free(item);
+        pthread_mutex_unlock(&reading_mux);
         return status;
     }
 
-    item->object = obj;
     printf("read object %s\n", obj->str);
+
+    if (!decode_message(obj->str, &(item->msg))) {
+        puts("decode error\n");
+        software_error(&(item->msg), "Could not decode message");
+    }
 
     // get the IP address of the remote host
     struct sockaddr addr;
     socklen_t addrlen = sizeof(addr);
     if (0 != getpeername(fd, &addr, &addrlen)) {
+        puts("get peer name");
         free_bufferitem(item);
+        pthread_mutex_unlock(&reading_mux);
         return ERROR;
     }
+
+    // we are done with the fd now
+    pthread_mutex_unlock(&reading_mux);
 
     // check it is IPv4
     struct sockaddr_in *ip4_addr = (struct sockaddr_in *) &addr;
@@ -170,6 +191,7 @@ static ReadStatus fetch_item(int fd) {
 
     // get access to the queue
     if (0 != pthread_mutex_lock(&read_buff_mux)) {
+        puts("can't lock queue");
         free_bufferitem(item);
         return ERROR;
     }
@@ -200,33 +222,96 @@ static void *object_reader_thread(void *arg) {
             close(fd);
             return NULL;
         } else if (END == status) {
+            puts("end");
             return NULL; // we have read all of it
         }
+        puts("fetched");
     }
 
     free(arg);
 }
 
+// another thread for reporting a connection close
+static void *report_close_thread(void *arg) {
+    int fd = *((int *) arg);   
+
+    // get the IP address of the remote host
+    struct sockaddr addr;
+    socklen_t addrlen = sizeof(addr);
+    if (0 != getpeername(fd, &addr, &addrlen)) {
+        puts("get peer name");
+        pthread_mutex_unlock(&reading_mux);
+        return NULL;
+    }
+
+    // we are done with the fd now
+    pthread_mutex_unlock(&reading_mux);
+
+    // check it is IPv4
+    struct sockaddr_in *ip4_addr = (struct sockaddr_in *) &addr;
+    if (AF_INET != ip4_addr->sin_family) {
+        return NULL;
+    }
+
+    // allocate the item to go onto the queue
+    BufferItem *item = malloc(sizeof(BufferItem));
+    if (!item) {
+        return NULL;
+    }
+
+    item->address = ip4_addr->sin_addr;
+
+    software_error(&(item->msg), "Connection closed");
+
+    // get access to the queue
+    if (0 != pthread_mutex_lock(&read_buff_mux)) {
+        puts("can't lock queue");
+        free_bufferitem(item);
+        return NULL;
+    }
+
+    // add the item to the queue
+    g_queue_push_tail(read_buff, (gpointer) item);
+
+    pthread_mutex_unlock(&read_buff_mux);
+    puts("connection close added to queue");
+
+    close(fd);
+    free(arg);
+    return NULL;
+}
+
 // realtime signal handler for when IO is available on a connection with a client
 static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)) siginfo_t *si, __attribute__ ((unused)) void *ucontext) {
     printf("IO! fd=%d\n", si->si_fd);
+    pthread_t thread;
 
     // check to see if there is any data to read
+    // checking si->si_code just seems to report the connection is closed on every signal
     // MSG_PEEK so that the read character is not removed from the read buffer
+    if (0 != pthread_mutex_lock(&reading_mux))
+        return;
     char buf;
     ssize_t count = recv(si->si_fd, &buf, 1, MSG_PEEK);
+    int e = errno;
     if (1 != count) {
-        printf("closed connection\n");
-        close(si->si_fd);
+        // BUG: this may report the connection close more than once. si_code, errno and count seem the same each time so I don't know how to tell
+        printf("closed connection. fd=%i si_code=%i errno=%i count=%li\n",si->si_fd, si->si_code, e, count);
+        // (in another thread) add a message to the queue reporting that the connection closed
+        int *thread_arg = malloc(sizeof(int));
+        if (!thread_arg)
+            return;
+        *thread_arg = si->si_fd;
+        pthread_create(&thread, NULL, report_close_thread, (void *) thread_arg); // unlocks the reading mutex  
         return;
     }
+    pthread_mutex_unlock(&reading_mux);
 
     // do the actual reading in a different thread (see comment on thread function)
     int *thread_arg = malloc(sizeof(int));
     if (!thread_arg)
         return;
     *thread_arg = si->si_fd;
-    pthread_t thread;
     pthread_create(&thread, NULL, object_reader_thread, (void *) thread_arg);
 }
 
@@ -309,9 +394,8 @@ bool start_server(const struct sockaddr *addr, socklen_t addrlen) {
     return true;
 }
 
-// free a BufferItem
+// free a BufferItem (wrapper function incase it contains anyting that needs freeing interneally)
 void free_bufferitem(BufferItem *item) {
-    g_string_free(item->object, true);
     free(item);
 }
 
@@ -323,6 +407,9 @@ void stop_server(void) {
     }
 
     // free up the read buffer
-    if (read_buff)
+    if (read_buff) {
+        pthread_mutex_lock(&read_buff_mux);
         g_queue_free_full(read_buff, (GDestroyNotify) free_bufferitem);
+        pthread_mutex_unlock(&read_buff_mux);
+    }
 }

@@ -21,13 +21,14 @@ extern "C" {
 #include <stdint.h>
 #include <glib.h>
 #include <arpa/inet.h>
+#include "representation.h"
 
 // declarations
 
 // stores a message and the IP address it was from
 typedef struct {
-    GString *object; // "{*}"
-    struct in_addr address; // IPv4 address
+    ErrorMessage msg; // Error Message
+    struct in_addr address; // IPv4 address which sent (or generated) the error
 } BufferItem;
 
 // result from reading from a socket (not used externally)

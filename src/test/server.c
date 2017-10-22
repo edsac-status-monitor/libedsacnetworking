@@ -23,9 +23,10 @@ int main(void) {
         stop_server();
         return EXIT_FAILURE;
     }
-    free(addr);
 
     while(true);
+
+    free(addr);
     stop_server();
     return EXIT_SUCCESS;
 }
