@@ -16,6 +16,7 @@
 #include <pthread.h>
 #include "representation.h"
 #include <errno.h>
+#include <pthread.h>
 
 #include <stdio.h>
 
@@ -130,18 +131,10 @@ static ReadStatus fetch_item(int fd) {
         return ERROR;
     }
 
-    // abort if we can't get the mutex immediately so we don't get stuck in the handler and deadlock
-    // doing this early so that we don't try reading anything until we are sure it can go into the queue
-    if (0 != pthread_mutex_trylock(&read_buff_mux)) {
-        free(item);
-        return ERROR;
-    }
-
     // attempt to read in the json object
     GString *obj;
     ReadStatus status = read_json_object(fd, &obj);
     if (SUCCESS != status) {
-        pthread_mutex_unlock(&read_buff_mux);
         free(item);
         return status;
     }
@@ -153,7 +146,6 @@ static ReadStatus fetch_item(int fd) {
     struct sockaddr addr;
     socklen_t addrlen = sizeof(addr);
     if (0 != getpeername(fd, &addr, &addrlen)) {
-        pthread_mutex_unlock(&read_buff_mux);
         free_bufferitem(item);
         return ERROR;
     }
@@ -161,18 +153,48 @@ static ReadStatus fetch_item(int fd) {
     // check it is IPv4
     struct sockaddr_in *ip4_addr = (struct sockaddr_in *) &addr;
     if (AF_INET != ip4_addr->sin_family) {
-        pthread_mutex_unlock(&read_buff_mux);
         free_bufferitem(item);
         return ERROR;
     }
 
     item->address = ip4_addr->sin_addr;
 
+    // get access to the queue
+    if (0 != pthread_mutex_lock(&read_buff_mux)) {
+        free_bufferitem(item);
+        return ERROR;
+    }
+
     // add the item to the queue
     g_queue_push_tail(read_buff, (gpointer) item);
 
     pthread_mutex_unlock(&read_buff_mux);
     return SUCCESS;
+}
+
+/* the actual reading is done in its own thread for the following situation:
+ *    1. some normal code has read_buff_mux locked
+ *    2. io_handler signal tries to lock read_buff_mux
+ *    3. deadlock
+ *
+ * Using s different thread for the io_handler means that it can block waiting for read_buff_mux without creating a deadlock
+ */
+static void *object_reader_thread(void *arg) {
+    int fd = *((int *) arg);
+
+    // read in every available object
+    while (true) {
+        ReadStatus status = fetch_item(fd);
+        if (ERROR == status) {
+            puts("Read ERROR from remote host\n"); 
+            close(fd);
+            return NULL;
+        } else if (END == status) {
+            return NULL; // we have read all of it
+        }
+    }
+
+    free(arg);
 }
 
 // realtime signal handler for when IO is available on a connection with a client
@@ -184,25 +206,18 @@ static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)
     char buf;
     ssize_t count = recv(si->si_fd, &buf, 1, MSG_PEEK);
     if (1 != count) {
-        int e = errno;
-        printf("(handler) errno=%i, count=%li\n", e, count);
         printf("closed connection\n");
         close(si->si_fd);
         return;
     }
 
-    // read in every object
-    while (true) {
-        ReadStatus status = fetch_item(si->si_fd);
-        if (ERROR == status) {
-            puts("Read ERROR from remote host\n"); // not stricly safe from a signal handler
-            close(si->si_fd);
-            return;
-        } else if (END == status) {
-            puts("end\n");
-            return; // we have read all of it
-        }
-    }
+    // do the actual reading in a different thread (see comment on thread function)
+    int *thread_arg = malloc(sizeof(int));
+    if (!thread_arg)
+        return;
+    *thread_arg = si->si_fd;
+    pthread_t thread;
+    pthread_create(&thread, NULL, object_reader_thread, (void *) thread_arg);
 }
 
 // realtime signal handler for when there is a connection to the listening socket
