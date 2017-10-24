@@ -31,11 +31,15 @@ AC_CONFIG_HEADERS([include/config.h])
 AC_PROG_CC
 AC_PROG_AWK
 # for making static libraries:
-AC_PROG_RANLIB
 AM_PROG_AR
 
 # check GLIB is installed
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.32])
+
+# use libtool
+LT_PREREQ([2.4.6])
+LT_INIT([])
+AC_SUBST([LIBTOOL_DEPS])
 
 # pthreads
 AX_PTHREAD()

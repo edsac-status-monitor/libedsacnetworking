@@ -2,7 +2,7 @@
  * Copyright 2017
  * MIT Licenced
  * representation.c
- * This is just a temporary hello world program to test that the build system is working. Also tries using cJSON.
+ * Functions relating to the representation of network messages
  */
 
 #include "config.h"
@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+// initialises a hardware error message
 void hardware_error(ErrorMessage *message, int valve_no, int test_point_no, bool test_point_high) {
     if (NULL == message)
         return;
@@ -23,6 +24,7 @@ void hardware_error(ErrorMessage *message, int valve_no, int test_point_no, bool
     message->data.hardware.test_point_high = test_point_high;
 }
 
+// initialises a software error message
 void software_error(ErrorMessage *message, const char *string) {
     if (NULL == message)
         return;
@@ -31,13 +33,15 @@ void software_error(ErrorMessage *message, const char *string) {
     message->data.software.message = (char *) string;
 }
 
-// shorthand
+// shorthand to bail if a pointer is NULL
 #define NULL_CHECK(_ptr, _root, _ret_val) \
     if (NULL == _ptr) { \
         cJSON_Delete(_root); \
         return _ret_val; \
     }
 
+// encode a message structure into a format to be transmitted
+// returns the length of the encoded_message string
 ssize_t encode_message(const ErrorMessage *message, char **encoded_message) {
     // arguments check
     if ((NULL == message) || (NULL == encoded_message))
@@ -60,7 +64,9 @@ ssize_t encode_message(const ErrorMessage *message, char **encoded_message) {
 
     // the rest depends on the message type
     switch (message->type) {
-        case HARD_ERROR: ; // hardware error
+        // hardware error
+        case HARD_ERROR: ;  // ; is because C won't define a variable as the first statement after a goto
+            // message type
             cJSON *hard_err_type = cJSON_CreateString("HARD_ERROR");
             NULL_CHECK(hard_err_type, root, -1)
             cJSON_AddItemToObject(root, "type", hard_err_type);
@@ -82,6 +88,7 @@ ssize_t encode_message(const ErrorMessage *message, char **encoded_message) {
             break;
 
         case SOFT_ERROR: ;
+            // message type
             cJSON *soft_err_type = cJSON_CreateString("SOFT_ERROR");
             NULL_CHECK(soft_err_type, root, -1)
             cJSON_AddItemToObject(root, "type", soft_err_type);
@@ -93,11 +100,12 @@ ssize_t encode_message(const ErrorMessage *message, char **encoded_message) {
             break;
 
         case INVALID: // invalid message
-        default: // anything else
+        default: // or anything else
             cJSON_Delete(root); 
             return -1;           
     }
 
+    // encode JSON as string
     *encoded_message = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
     if (NULL == *encoded_message) {
@@ -110,13 +118,15 @@ ssize_t encode_message(const ErrorMessage *message, char **encoded_message) {
     return len;
 }
 
-// shorthand
+// shorthand to check the type of a node in the cJSON tree
 #define EXPECT_TYPE(_ptr, _type) \
     if (!cJSON_Is##_type(_ptr)) { \
         cJSON_Delete(root); \
         return false; \
     } \
 
+// decode a string into a message structure
+// returns success
 bool decode_message(const char* encoded_message, ErrorMessage *message) {
     // arguments check
     if ((NULL == encoded_message) || (NULL == message))

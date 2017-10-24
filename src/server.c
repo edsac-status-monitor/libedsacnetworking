@@ -20,6 +20,23 @@
 
 #include <stdio.h>
 
+/* TODO:
+Global fd state:
+- separate reading_mux per fd
+- watchdog pulse
+*/
+
+/* So what is going on here?
+The server uses signal driven IO so that it is not constantly polling dosens of clients.
+We use two signal handlers: CONNECT_SIG for when a new client connects and READ_SIG for when new IO is available on a socket
+
+The handler for READ_SIG is quite complex. It can only access shared resources asynchronously by spawning worker threads incase we are interupting code
+already has the control mutex locked (in which case a deadlock would occur if we operated synchronously).
+
+When a message is read in it is added to the read_buff queue. Items are requested and returned from this queue at some later time using read_message()
+*/
+
+// ofsets past REALTIMESIGMIN
 #define CONNECT_SIG 1
 #define READ_SIG 2
 
@@ -27,6 +44,7 @@
 static GQueue *read_buff = NULL;
 static pthread_mutex_t read_buff_mux = PTHREAD_MUTEX_INITIALIZER;
 
+// serializes access to file descriptors
 static pthread_mutex_t reading_mux = PTHREAD_MUTEX_INITIALIZER;
 
 // the listening socket
@@ -63,7 +81,7 @@ static bool setup_rt_signal_io(int fd, int sig, void (*handler)(int, siginfo_t *
     return true;
 }
 
-// attempt to read a full  json object from a fd (defined as "{*}", handling nesting)
+// attempt to read a full json object from a fd (defined as "{*}", handling nesting)
 static ReadStatus read_json_object(int fd, GString **out_string) {
     // assume that we can read the whole thing at once
 
@@ -146,10 +164,6 @@ static ReadStatus fetch_item(int fd) {
     if (NULL == item) {
         return ERROR;
     }
-
-    // get access to the fd
-    if (0 != pthread_mutex_lock(&reading_mux))
-        return ERROR;
 
     // attempt to read in the json object
     GString *obj;
@@ -289,8 +303,10 @@ static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)
     // check to see if there is any data to read
     // checking si->si_code just seems to report the connection is closed on every signal
     // MSG_PEEK so that the read character is not removed from the read buffer
-    if (0 != pthread_mutex_lock(&reading_mux))
+    if (0 != pthread_mutex_lock(&reading_mux)) {
+        puts("can't lock reading mux");
         return;
+    }
     char buf;
     ssize_t count = recv(si->si_fd, &buf, 1, MSG_PEEK);
     int e = errno;
@@ -305,14 +321,15 @@ static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)
         pthread_create(&thread, NULL, report_close_thread, (void *) thread_arg); // unlocks the reading mutex  
         return;
     }
-    pthread_mutex_unlock(&reading_mux);
 
     // do the actual reading in a different thread (see comment on thread function)
     int *thread_arg = malloc(sizeof(int));
-    if (!thread_arg)
+    if (!thread_arg) {
+        pthread_mutex_unlock(&reading_mux);
         return;
+    }
     *thread_arg = si->si_fd;
-    pthread_create(&thread, NULL, object_reader_thread, (void *) thread_arg);
+    pthread_create(&thread, NULL, object_reader_thread, (void *) thread_arg); // this thread unlocks the reading mux when it is done
 }
 
 // realtime signal handler for when there is a connection to the listening socket

@@ -1,6 +1,6 @@
 # make static library target
-noinst_LIBRARIES = libnetworking.a
-libnetworking_a_SOURCES = src/representation.c src/contrib/cJSON.c include/representation.h include/contrib/cJSON.h src/server.c include/server.h src/sending.c include/sending.h
+lib_LTLIBRARIES = libnetworking.la
+libnetworking_la_SOURCES = src/representation.c src/contrib/cJSON.c include/representation.h include/contrib/cJSON.h src/server.c include/server.h src/sending.c include/sending.h
 
 # make subdirectories work
 ACLOCAL_AMFLAGS = -I m4 --install
@@ -12,8 +12,8 @@ AM_CFLAGS = -Wall -Wextra -pedantic -Wshadow -Wpointer-arith -Wcast-align -Wwrit
 # Unit tests
 check_PROGRAMS = representation.test system.test
 representation_test_SOURCES = src/test/representation.c
-representation_test_LDADD = libnetworking.a $(GLIB_LIBS) $(PTHREAD_LIBS)
+representation_test_LDADD = libnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS)
 system_test_SOURCES = src/test/system.c
-system_test_LDADD = libnetworking.a $(GLIB_LIBS) $(PTHREAD_LIBS)
+system_test_LDADD = libnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS)
 TESTS = representation.test system.test
 
