@@ -16,6 +16,8 @@ extern "C" {
 // includes
 #include<stdbool.h>
 #include<sys/types.h> // ssize_t size_t 
+#include<stdint.h>
+#include <arpa/inet.h>
 
 // declarations
 
@@ -50,6 +52,11 @@ typedef struct {
     MessageType type;
     MessageData data;
 } ErrorMessage;
+
+// sets up an ip v4 address structure
+// returns NULL on failure. addr is a string representation e.g. "127.0.0.1"
+// the returned address should be free()'ed after use
+struct sockaddr *alloc_addr(const char *addr, uint16_t port);
 
 // function to initialise a hardware error structure
 void hardware_error(ErrorMessage *message, int valve_no, int test_point_no, bool test_point_high);

@@ -13,6 +13,33 @@
 #include <string.h>
 #include <stdlib.h>
 
+// sets up a sockaddr structure for the IPv4 address described in addr e.g. addr="127.0.0.1"
+struct sockaddr *alloc_addr(const char *addr, uint16_t port) {
+    if (NULL == addr)
+        return NULL;
+
+    // allocate the sockaddr structure
+    struct sockaddr_in *ret = (struct sockaddr_in *) malloc(sizeof(struct sockaddr_in));
+    if (NULL == ret)
+        return NULL;
+
+    // clear its contents
+    memset(ret, 0, sizeof(struct sockaddr_in));
+
+    // set up the sockaddr
+    ret->sin_family = AF_INET; // address family
+    ret->sin_port = htons(port); // port (in network byte order)
+
+    // the address
+    if (1 != inet_pton(AF_INET, addr, (void *) &(ret->sin_addr))) {
+        free(ret);
+        return NULL;
+    }
+
+    // sockaddr is the general type for any sockaddr_*
+    return (struct sockaddr *) ret;
+}
+
 // initialises a hardware error message
 void hardware_error(ErrorMessage *message, int valve_no, int test_point_no, bool test_point_high) {
     if (NULL == message)

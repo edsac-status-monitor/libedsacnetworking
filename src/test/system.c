@@ -16,10 +16,6 @@
 #include <unistd.h>
 #include <string.h>
 
-// some delays for threads to finish running
-// needed because items are not added to the read buffer synchronously so if we rush into reading from the queue immediately, the message won't be there yet
-#define TIMING_DELAY 1E5 // micro seconds
-
 // creates a server and client and tests that messages can be sent successfully between them
 int main(void) {
     // sent as the body of a software error
@@ -56,9 +52,6 @@ int main(void) {
 
     puts("disconnecting");
     stop_sending();
-
-    // sleep for a bit while the server threads finish processing
-    usleep(TIMING_DELAY);
 
     // get first message from the queue
     BufferItem *soft_err = read_message(); // if this is failing then first try increasing TIMING_DELAY

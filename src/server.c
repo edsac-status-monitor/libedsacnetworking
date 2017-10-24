@@ -24,6 +24,7 @@
 Global fd state:
 - separate reading_mux per fd
 - watchdog pulse
+- pass pointer structure in global fd table instead of fd to threads
 */
 
 /* So what is going on here?
@@ -83,11 +84,11 @@ static bool setup_rt_signal_io(int fd, int sig, void (*handler)(int, siginfo_t *
 
 // attempt to read a full json object from a fd (defined as "{*}", handling nesting)
 static ReadStatus read_json_object(int fd, GString **out_string) {
-    // assume that we can read the whole thing at once
+    // assuming that we can read the whole thing at once
 
     GString *string = g_string_new("{");
 
-    // the first character must be '{'
+    // read first character
     char buf;
     ssize_t num_read = read(fd, &buf, 1);
     if (1 != num_read) { // we could not read a whole character
@@ -99,7 +100,7 @@ static ReadStatus read_json_object(int fd, GString **out_string) {
             return END;
         }
         
-        // there was data but an error occured
+        // there may have been data but an unknown error occured
         printf("Unknown error errno=%i num_read=%li\n", e, num_read);
         return ERROR;
     }
@@ -108,8 +109,8 @@ static ReadStatus read_json_object(int fd, GString **out_string) {
     if (buf != '{') {
         g_string_free(string, true);
 
-        // ignore newline characters so we can telnet in for testing
-        if ((buf == '\n') || (buf == 13)) { 
+        // skip newline characters so we can telnet in for testing
+        if ((buf == '\n') || (buf == 13 /*CR*/)) { 
             puts("newline");
             return read_json_object(fd, out_string);
         }
@@ -119,7 +120,7 @@ static ReadStatus read_json_object(int fd, GString **out_string) {
     }
 
     // read in the rest
-    int nest_count = 1;
+    int nest_count = 1; // we already have {
     while (true) {
         // try to read 1 character
         num_read = read(fd, &buf, 1);
@@ -137,12 +138,13 @@ static ReadStatus read_json_object(int fd, GString **out_string) {
                 return ERROR;
             }
         }
-        // we did read in a character successfully
+
+        // we did read in a character successfully...
         
         // nesting count
-        if (buf == '{')
+        if ('{' == buf)
             nest_count += 1;
-        else if (buf == '}')
+        else if ('}' == buf)
             nest_count -= 1;
 
         // add the character to the string
@@ -158,6 +160,7 @@ static ReadStatus read_json_object(int fd, GString **out_string) {
 }
 
 // fetch a read buffer item from fd
+// mutexes are done by the caller
 static ReadStatus fetch_item(int fd) {
     // the item we will add to the buffer for this read
     BufferItem *item = malloc(sizeof(BufferItem));
@@ -170,14 +173,15 @@ static ReadStatus fetch_item(int fd) {
     ReadStatus status = read_json_object(fd, &obj);
     if (SUCCESS != status) {
         free(item);
-        pthread_mutex_unlock(&reading_mux);
         return status;
     }
 
     printf("read object %s\n", obj->str);
 
+    // decode JSON
     if (!decode_message(obj->str, &(item->msg))) {
         puts("decode error\n");
+        // report this BufferItem as a software error
         software_error(&(item->msg), "Could not decode message");
     }
 
@@ -187,14 +191,10 @@ static ReadStatus fetch_item(int fd) {
     if (0 != getpeername(fd, &addr, &addrlen)) {
         puts("get peer name");
         free_bufferitem(item);
-        pthread_mutex_unlock(&reading_mux);
         return ERROR;
     }
 
-    // we are done with the fd now
-    pthread_mutex_unlock(&reading_mux);
-
-    // check it is IPv4
+    // check it is an IPv4 address
     struct sockaddr_in *ip4_addr = (struct sockaddr_in *) &addr;
     if (AF_INET != ip4_addr->sin_family) {
         free_bufferitem(item);
@@ -203,17 +203,9 @@ static ReadStatus fetch_item(int fd) {
 
     item->address = ip4_addr->sin_addr;
 
-    // get access to the queue
-    if (0 != pthread_mutex_lock(&read_buff_mux)) {
-        puts("can't lock queue");
-        free_bufferitem(item);
-        return ERROR;
-    }
-
     // add the item to the queue
     g_queue_push_tail(read_buff, (gpointer) item);
 
-    pthread_mutex_unlock(&read_buff_mux);
     return SUCCESS;
 }
 
@@ -224,74 +216,90 @@ static ReadStatus fetch_item(int fd) {
  *    3. deadlock
  *
  * Using s different thread for the io_handler means that it can block waiting for read_buff_mux without creating a deadlock
+ * We handle mutexes out here to force the program to behave more serially:
+ *    For example, if the read queue was only locked while it was being used, the system test becomes a race to see if this thread can finish
+ *      adding to the queue before the queue item is requested by the test. This way the queue item request can't jump in so easily
+ *      (theoretically it could jump in before this thread has had any chance to lock the mutex but in practice this seems not to happen. 
+ *      I can't see a better solution than this because we can't lock the mutex in the signal handler because of the above deadlock)
  */
 static void *object_reader_thread(void *arg) {
     int fd = *((int *) arg);
-
+    
+    // get exclusive access to the read_buff
+    if (0 != pthread_mutex_lock(&read_buff_mux)) {
+        puts("object reader could not get the read_buff mutex");
+        free(arg);
+        return NULL;
+    }
+    
     // read in every available object
     while (true) {
         ReadStatus status = fetch_item(fd);
         if (ERROR == status) {
             puts("Read ERROR from remote host\n"); 
             close(fd);
-            return NULL;
-        } else if (END == status) {
-            puts("end");
-            return NULL; // we have read all of it
+            break;
+        } else if (END == status) { // we have read the whole buffer
+            break;
         }
-        puts("fetched");
+        // else we had a SUCCESS so continue (the buffer may contain another message)
     }
-
+    
+    // clean up before returning
     free(arg);
+    pthread_mutex_unlock(&read_buff_mux);
+    pthread_mutex_unlock(&reading_mux);
+    return NULL;
 }
 
 // another thread for reporting a connection close
 static void *report_close_thread(void *arg) {
     int fd = *((int *) arg);   
-
+    
     // get the IP address of the remote host
     struct sockaddr addr;
     socklen_t addrlen = sizeof(addr);
     if (0 != getpeername(fd, &addr, &addrlen)) {
         puts("get peer name");
         pthread_mutex_unlock(&reading_mux);
+        free(arg);
         return NULL;
     }
-
+    
     // we are done with the fd now
+    free(arg); // data was copied into fd
     pthread_mutex_unlock(&reading_mux);
-
+    
     // check it is IPv4
     struct sockaddr_in *ip4_addr = (struct sockaddr_in *) &addr;
     if (AF_INET != ip4_addr->sin_family) {
         return NULL;
     }
-
+    
     // allocate the item to go onto the queue
     BufferItem *item = malloc(sizeof(BufferItem));
     if (!item) {
         return NULL;
     }
-
+    
     item->address = ip4_addr->sin_addr;
-
+    
     software_error(&(item->msg), "Connection closed");
-
+    
     // get access to the queue
     if (0 != pthread_mutex_lock(&read_buff_mux)) {
         puts("can't lock queue");
         free_bufferitem(item);
         return NULL;
     }
-
+    
     // add the item to the queue
     g_queue_push_tail(read_buff, (gpointer) item);
-
+    
     pthread_mutex_unlock(&read_buff_mux);
     puts("connection close added to queue");
-
+    
     close(fd);
-    free(arg);
     return NULL;
 }
 
@@ -300,25 +308,32 @@ static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)
     printf("IO! fd=%d\n", si->si_fd);
     pthread_t thread;
 
-    // check to see if there is any data to read
-    // checking si->si_code just seems to report the connection is closed on every signal
-    // MSG_PEEK so that the read character is not removed from the read buffer
+    // get the exclusive right to do reading as early as we can incase another thread closes the file descriptor
     if (0 != pthread_mutex_lock(&reading_mux)) {
         puts("can't lock reading mux");
         return;
     }
+
     char buf;
+    // check to see if there is any data to read
+    // checking si->si_code just seems to report the connection is closed on every signal
+    // MSG_PEEK so that the read character is not removed from the read buffer
     ssize_t count = recv(si->si_fd, &buf, 1, MSG_PEEK);
     int e = errno;
     if (1 != count) {
         // BUG: this may report the connection close more than once. si_code, errno and count seem the same each time so I don't know how to tell
         printf("closed connection. fd=%i si_code=%i errno=%i count=%li\n",si->si_fd, si->si_code, e, count);
+
         // (in another thread) add a message to the queue reporting that the connection closed
         int *thread_arg = malloc(sizeof(int));
-        if (!thread_arg)
+        if (!thread_arg) {
+            pthread_mutex_unlock(&reading_mux);
             return;
+        }
+
+        // start thread
         *thread_arg = si->si_fd;
-        pthread_create(&thread, NULL, report_close_thread, (void *) thread_arg); // unlocks the reading mutex  
+        pthread_create(&thread, NULL, report_close_thread, (void *) thread_arg); // unlocks the reading mutex & frees thread_arg 
         return;
     }
 
@@ -328,8 +343,10 @@ static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)
         pthread_mutex_unlock(&reading_mux);
         return;
     }
+
+    // start thread
     *thread_arg = si->si_fd;
-    pthread_create(&thread, NULL, object_reader_thread, (void *) thread_arg); // this thread unlocks the reading mux when it is done
+    pthread_create(&thread, NULL, object_reader_thread, (void *) thread_arg); // this thread unlocks the reading mux when it is done & frees thread_arg
 }
 
 // realtime signal handler for when there is a connection to the listening socket
@@ -344,33 +361,8 @@ static void connect_handler(__attribute__ ((unused)) int sig, siginfo_t *si, __a
     setup_rt_signal_io(fd, SIGRTMIN + READ_SIG, io_handler);
 }
 
-// sets up a sockaddr structure for the IPv4 address described in addr e.g. addr="127.0.0.1"
-struct sockaddr *alloc_addr(const char *addr, uint16_t port) {
-    if (NULL == addr)
-        return NULL;
-
-    // allocate the sockaddr structure
-    struct sockaddr_in *ret = (struct sockaddr_in *) malloc(sizeof(struct sockaddr_in));
-    if (NULL == ret)
-        return NULL;
-
-    // clear its contents
-    memset(ret, 0, sizeof(struct sockaddr_in));
-
-    // set up the sockaddr
-    ret->sin_family = AF_INET; // address family
-    ret->sin_port = htons(port); // port (in network byte order)
-
-    // the address
-    if (1 != inet_pton(AF_INET, addr, (void *) &(ret->sin_addr))) {
-        free(ret);
-        return NULL;
-    }
-
-    // sockaddr is the general type for any sockaddr_*
-    return (struct sockaddr *) ret;
-}
-
+// starts a server listening on addr
+// returns success
 bool start_server(const struct sockaddr *addr, socklen_t addrlen) {
     if (NULL == addr)
         return false;
@@ -389,15 +381,22 @@ bool start_server(const struct sockaddr *addr, socklen_t addrlen) {
         return false;
     }
 
-    // set up signal-driven IO on the listening socket
-    if (!setup_rt_signal_io(listen_socket, SIGRTMIN + CONNECT_SIG, connect_handler)) {
+    // initialise the read buffer
+    read_buff = g_queue_new();
+    if (!read_buff) {
         close(listen_socket);
         listen_socket = -1;
         return false;
     }
 
-    // initialise the read buffer
-    read_buff = g_queue_new();
+    // set up realtime signal-driven IO on the listening socket
+    if (!setup_rt_signal_io(listen_socket, SIGRTMIN + CONNECT_SIG, connect_handler)) {
+        close(listen_socket);
+        listen_socket = -1;
+        g_queue_free(read_buff);
+        read_buff = NULL;
+        return false;
+    }
 
     // begin listening on the socket
     if (-1 == listen(listen_socket, SOMAXCONN)) {
@@ -411,11 +410,13 @@ bool start_server(const struct sockaddr *addr, socklen_t addrlen) {
     return true;
 }
 
+// gets a message from the read queue
 BufferItem *read_message(void) {
     if (0 != pthread_mutex_lock(&read_buff_mux))
         return NULL;
 
     BufferItem *ret = (BufferItem *) g_queue_pop_head(read_buff);
+    // if this is NULL we should be returning NULL anyway
 
     pthread_mutex_unlock(&read_buff_mux);
 
@@ -425,6 +426,7 @@ BufferItem *read_message(void) {
 // free a BufferItem (wrapper function incase it contains anyting that needs freeing interneally)
 void free_bufferitem(BufferItem *item) {
     free(item);
+    // todo: free_errormessage
 }
 
 void stop_server(void) {

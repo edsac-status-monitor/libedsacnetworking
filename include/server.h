@@ -41,11 +41,6 @@ typedef enum {
 // frees a BufferItem
 void free_bufferitem(BufferItem *item);
 
-// sets up an ip v4 address structure
-// returns NULL on failure. addr is a string representation e.g. "127.0.0.1"
-// the returned address should be free()'ed after use
-struct sockaddr *alloc_addr(const char *addr, uint16_t port);
-
 // set up the server
 // returns success
 bool start_server(const struct sockaddr *addr, socklen_t addrlen);
