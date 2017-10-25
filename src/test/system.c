@@ -52,7 +52,7 @@ int main(void) {
 
     puts("disconnecting");
     stop_sending();
-
+    
     // get first message from the queue
     BufferItem *soft_err = read_message(); // if this is failing then first try increasing TIMING_DELAY
     assert(NULL != soft_err);
@@ -60,15 +60,19 @@ int main(void) {
     assert(soft_err->msg.type == msg.type);
     // same content
     assert(0 == strncmp(test_message, soft_err->msg.data.software.message->str, strlen(test_message)));
-
+    free_bufferitem(soft_err);
+    
     // get the disconnect message from the queue
     BufferItem *disconnect = read_message();
     assert(NULL != disconnect);
-
+    
     // same type
     assert(SOFT_ERROR == disconnect->msg.type);
     // same content
     assert(0 == strncmp("Connection closed", disconnect->msg.data.software.message->str, 18));
+    free_bufferitem(disconnect);
+    
+    free_message(&msg);
 
     puts("stopping server");
     stop_server();

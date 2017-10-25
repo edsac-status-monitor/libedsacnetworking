@@ -185,6 +185,8 @@ static ReadStatus fetch_item(int fd) {
         software_error(&(item->msg), "Could not decode message");
     }
 
+    g_string_free(obj, true);
+
     // get the IP address of the remote host
     struct sockaddr addr;
     socklen_t addrlen = sizeof(addr);
@@ -260,7 +262,7 @@ static void *report_close_thread(void *arg) {
     struct sockaddr addr;
     socklen_t addrlen = sizeof(addr);
     if (0 != getpeername(fd, &addr, &addrlen)) {
-        puts("get peer name");
+        // when this thread is kicked off too many times, the later ones should stop here
         pthread_mutex_unlock(&reading_mux);
         free(arg);
         return NULL;
