@@ -57,7 +57,7 @@ void software_error(ErrorMessage *message, const char *string) {
         return;
 
     message->type = SOFT_ERROR;
-    message->data.software.message = (char *) string;
+    message->data.software.message = g_string_new(string);
 }
 
 // shorthand to bail if a pointer is NULL
@@ -121,7 +121,7 @@ ssize_t encode_message(const ErrorMessage *message, char **encoded_message) {
             cJSON_AddItemToObject(root, "type", soft_err_type);
 
             // message
-            cJSON *cjson_message = cJSON_CreateString(message->data.software.message);
+            cJSON *cjson_message = cJSON_CreateString(message->data.software.message->str);
             NULL_CHECK(cjson_message, root, -1)
             cJSON_AddItemToObject(data, "message", cjson_message);
             break;
@@ -190,15 +190,9 @@ bool decode_message(const char* encoded_message, ErrorMessage *message) {
         NULL_CHECK(description, root, false)
         EXPECT_TYPE(description, String)
 
-        // make a copy of the string so it isn't lost on cJSON_Delete
-        size_t len = strnlen(description->valuestring, MAX_MSG_LEN) + 1;
-        char *desc = (char *) malloc(len);
-        NULL_CHECK(desc, root, false)
-        strncpy(desc, description->valuestring, len);
-
         // initialise message
-        software_error(message, desc);
-    
+        // GLIB makes a copy so we don't need to worry when calling cJSON_Delete
+        software_error(message, description->valuestring);
     } else if (0 == strncmp("HARD_ERROR", type->valuestring, 20)) {
         // it was a hardware error packet
 
@@ -228,4 +222,19 @@ bool decode_message(const char* encoded_message, ErrorMessage *message) {
     
     cJSON_Delete(root);
     return true;
+}
+
+// frees dynamically allocated memory *within* a message (aka this will not free the message structure itself)
+void free_message(ErrorMessage *msg) {
+    if (!msg)
+        return;
+
+    // free the description string in the software error
+    if (SOFT_ERROR == msg->type) {
+        g_string_free(msg->data.software.message, true);
+        msg->data.software.message = NULL;
+    }
+
+    // mark the message as free'ed
+    msg->type = INVALID;
 }

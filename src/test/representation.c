@@ -43,6 +43,10 @@ static void test_encoding(void) {
 
     // test that we cannot encode an invalid message
     assert(-1 == encode_message(&invalid, &msg));
+
+    // free message contents (only strictly nesecary for the software message)
+    free_message(&software);
+    free_message(&hardware);
 }
 
 static void test_decoding(void) {
@@ -64,8 +68,8 @@ static void test_decoding(void) {
     // software packet
     assert(decode_message(software, &msg));
     assert(SOFT_ERROR == msg.type);
-    assert(0 == strncmp("hello world!", msg.data.software.message, 13));
-    free(msg.data.software.message);
+    assert(0 == strncmp("hello world!", msg.data.software.message->str, 13));
+    free_message(&msg);
 
     // hardware packet
     assert(decode_message(hardware, &msg));
@@ -73,6 +77,7 @@ static void test_decoding(void) {
     assert(2 == msg.data.hardware.valve_no);
     assert(3 == msg.data.hardware.test_point_no);
     assert(false == msg.data.hardware.test_point_high);
+    free_message(&msg);
 }
 
 int main(void) {

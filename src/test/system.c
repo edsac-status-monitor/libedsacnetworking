@@ -59,7 +59,7 @@ int main(void) {
     // same type
     assert(soft_err->msg.type == msg.type);
     // same content
-    assert(0 == strncmp(test_message, soft_err->msg.data.software.message, strlen(test_message)));
+    assert(0 == strncmp(test_message, soft_err->msg.data.software.message->str, strlen(test_message)));
 
     // get the disconnect message from the queue
     BufferItem *disconnect = read_message();
@@ -68,7 +68,7 @@ int main(void) {
     // same type
     assert(SOFT_ERROR == disconnect->msg.type);
     // same content
-    assert(0 == strncmp("Connection closed", disconnect->msg.data.software.message, 18));
+    assert(0 == strncmp("Connection closed", disconnect->msg.data.software.message->str, 18));
 
     puts("stopping server");
     stop_server();

@@ -17,7 +17,8 @@ extern "C" {
 #include<stdbool.h>
 #include<sys/types.h> // ssize_t size_t 
 #include<stdint.h>
-#include <arpa/inet.h>
+#include<arpa/inet.h>
+#include<glib.h>
 
 // declarations
 
@@ -38,7 +39,7 @@ typedef struct {
 // software error message
 #define MAX_MSG_LEN 200 // maximum allowable length for SoftErrorData.message
 typedef struct {
-    char *message; // message to be reported to the UI
+    GString *message; // message to be reported to the UI
 } SoftErrorData;
 
 // combined representation of the data sections
@@ -71,6 +72,9 @@ ssize_t encode_message(const ErrorMessage *message, char **encoded_message);
 // function to decode a message. 
 // Returns success or failure
 bool decode_message(const char* encoded_message, ErrorMessage *message);
+
+// frees dynamically allocated memory *within* a message (aka this will not free the message structure itself)
+void free_message(ErrorMessage *msg);
 
 // internals
 #define DATA_FORMAT_VERSION 1.0

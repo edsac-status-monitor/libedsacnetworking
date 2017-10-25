@@ -425,8 +425,8 @@ BufferItem *read_message(void) {
 
 // free a BufferItem (wrapper function incase it contains anyting that needs freeing interneally)
 void free_bufferitem(BufferItem *item) {
+    free_message(&(item->msg));
     free(item);
-    // todo: free_errormessage
 }
 
 void stop_server(void) {
