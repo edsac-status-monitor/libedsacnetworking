@@ -34,6 +34,7 @@ AC_PROG_AWK
 AM_PROG_AR
 
 # check GLIB is installed
+PKG_PREREQ([0.29])
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.32])
 
 # use libtool
