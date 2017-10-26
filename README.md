@@ -32,7 +32,7 @@ make distclean
 ## Using the library
 For function prototypes see the header files in include/.
 
-For a code example, see src/test/system.c.
+For code examples, see src/test/*.c.
 
 ### Setup
 A process may decide to only send, only receive or both send and receive messages.
