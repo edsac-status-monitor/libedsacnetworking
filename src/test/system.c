@@ -52,6 +52,9 @@ int main(void) {
 
     puts("disconnecting");
     stop_sending();
+
+    // delay so that all the threads are finished
+    usleep(500);
     
     // get first message from the queue
     BufferItem *soft_err = read_message(); // if this is failing then first try increasing TIMING_DELAY
