@@ -24,7 +24,7 @@ int main(void) {
     struct sockaddr *addr = alloc_addr("127.0.0.1", 2000);
     assert(NULL != addr);
 
-    ErrorMessage msg;
+    Message msg;
     software_error(&msg, test_message);
 
     puts("starting server");

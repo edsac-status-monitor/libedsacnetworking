@@ -52,7 +52,7 @@ typedef union {
 typedef struct {
     MessageType type;
     MessageData data;
-} ErrorMessage;
+} Message;
 
 // sets up an ip v4 address structure
 // returns NULL on failure. addr is a string representation e.g. "127.0.0.1"
@@ -60,21 +60,21 @@ typedef struct {
 struct sockaddr *alloc_addr(const char *addr, uint16_t port);
 
 // function to initialise a hardware error structure
-void hardware_error(ErrorMessage *message, int valve_no, int test_point_no, bool test_point_high);
+void hardware_error(Message *message, int valve_no, int test_point_no, bool test_point_high);
 
 // function to initialise a software error structure
-void software_error(ErrorMessage *message, const char *string);
+void software_error(Message *message, const char *string);
 
 // function to encode a message. Dynamically allocates storage
 // returns the size of the encoded message or -1 on error
-ssize_t encode_message(const ErrorMessage *message, char **encoded_message);
+ssize_t encode_message(const Message *message, char **encoded_message);
 
 // function to decode a message. 
 // Returns success or failure
-bool decode_message(const char* encoded_message, ErrorMessage *message);
+bool decode_message(const char* encoded_message, Message *message);
 
 // frees dynamically allocated memory *within* a message (aka this will not free the message structure itself)
-void free_message(ErrorMessage *msg);
+void free_message(Message *msg);
 
 // internals
 #define DATA_FORMAT_VERSION 1.0

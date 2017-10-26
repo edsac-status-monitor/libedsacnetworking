@@ -26,7 +26,7 @@ extern "C" {
 // addr is the address of the server to which we will report errors
 bool start_sending(const struct sockaddr *addr, socklen_t addrlen);
 
-bool send_message(const ErrorMessage *msg);
+bool send_message(const Message *msg);
 
 void stop_sending(void);
 

@@ -41,7 +41,7 @@ struct sockaddr *alloc_addr(const char *addr, uint16_t port) {
 }
 
 // initialises a hardware error message
-void hardware_error(ErrorMessage *message, int valve_no, int test_point_no, bool test_point_high) {
+void hardware_error(Message *message, int valve_no, int test_point_no, bool test_point_high) {
     if (NULL == message)
         return;
 
@@ -52,7 +52,7 @@ void hardware_error(ErrorMessage *message, int valve_no, int test_point_no, bool
 }
 
 // initialises a software error message
-void software_error(ErrorMessage *message, const char *string) {
+void software_error(Message *message, const char *string) {
     if (NULL == message)
         return;
 
@@ -69,7 +69,7 @@ void software_error(ErrorMessage *message, const char *string) {
 
 // encode a message structure into a format to be transmitted
 // returns the length of the encoded_message string
-ssize_t encode_message(const ErrorMessage *message, char **encoded_message) {
+ssize_t encode_message(const Message *message, char **encoded_message) {
     // arguments check
     if ((NULL == message) || (NULL == encoded_message))
         return -1;
@@ -154,7 +154,7 @@ ssize_t encode_message(const ErrorMessage *message, char **encoded_message) {
 
 // decode a string into a message structure
 // returns success
-bool decode_message(const char* encoded_message, ErrorMessage *message) {
+bool decode_message(const char* encoded_message, Message *message) {
     // arguments check
     if ((NULL == encoded_message) || (NULL == message))
         return false;
@@ -225,7 +225,7 @@ bool decode_message(const char* encoded_message, ErrorMessage *message) {
 }
 
 // frees dynamically allocated memory *within* a message (aka this will not free the message structure itself)
-void free_message(ErrorMessage *msg) {
+void free_message(Message *msg) {
     if (!msg)
         return;
 

@@ -33,7 +33,7 @@ bool start_sending(const struct sockaddr *addr, socklen_t addrlen) {
     return true;
 }
 
-bool send_message(const ErrorMessage *msg) {
+bool send_message(const Message *msg) {
     // msg checked for null in encode_message
 
     // encode the message for transmission

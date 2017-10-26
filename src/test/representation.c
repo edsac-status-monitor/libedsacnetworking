@@ -14,13 +14,13 @@
 
 
 static void test_encoding(void) {
-    ErrorMessage hardware;
+    Message hardware;
     hardware_error(&hardware, 1, 2, true);
 
-    ErrorMessage software;
+    Message software;
     software_error(&software, "blah blah software broke");
 
-    ErrorMessage invalid;
+    Message invalid;
     invalid.type = INVALID;
 
     char *msg;
@@ -58,7 +58,7 @@ static void test_decoding(void) {
     const char *software = "{\"version\":1,\"data\":{\"message\":\"hello world!\"},\"type\":\"SOFT_ERROR\"}";
 
     // memory to put stuff in
-    ErrorMessage msg;
+    Message msg;
 
     // test invalid cases
     assert(!decode_message(invalid_json, &msg));

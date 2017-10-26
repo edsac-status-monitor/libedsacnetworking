@@ -27,7 +27,7 @@ extern "C" {
 
 // stores a message and the IP address it was from
 typedef struct {
-    ErrorMessage msg; // Error Message
+    Message msg; // Error Message
     struct in_addr address; // IPv4 address which sent (or generated) the error
 } BufferItem;
 
