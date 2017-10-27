@@ -60,6 +60,14 @@ void software_error(Message *message, const char *string) {
     message->data.software.message = g_string_new(string);
 }
 
+// initialises a keep alive message
+void keep_alive(Message *message) {
+    if (NULL == message)
+        return;
+
+    message->type = KEEP_ALIVE;
+}
+
 // shorthand to bail if a pointer is NULL
 #define NULL_CHECK(_ptr, _root, _ret_val) \
     if (NULL == _ptr) { \
@@ -126,6 +134,13 @@ ssize_t encode_message(const Message *message, char **encoded_message) {
             cJSON_AddItemToObject(data, "message", cjson_message);
             break;
 
+        case KEEP_ALIVE: ;
+            // message type
+            cJSON *keep_alive_type = cJSON_CreateString("KEEP_ALIVE");
+            NULL_CHECK(keep_alive_type, root, -1)
+            cJSON_AddItemToObject(root, "type", keep_alive_type);
+            break;
+
         case INVALID: // invalid message
         default: // or anything else
             cJSON_Delete(root); 
@@ -182,7 +197,7 @@ bool decode_message(const char* encoded_message, Message *message) {
     NULL_CHECK(type, root, false)
     EXPECT_TYPE(type, String)
 
-    if (0 == strncmp("SOFT_ERROR", type->valuestring, 20)) {
+    if (0 == strncmp("SOFT_ERROR", type->valuestring, 11)) {
         // it was a software error packet 
 
         // get description string
@@ -193,7 +208,7 @@ bool decode_message(const char* encoded_message, Message *message) {
         // initialise message
         // GLIB makes a copy so we don't need to worry when calling cJSON_Delete
         software_error(message, description->valuestring);
-    } else if (0 == strncmp("HARD_ERROR", type->valuestring, 20)) {
+    } else if (0 == strncmp("HARD_ERROR", type->valuestring, 11)) {
         // it was a hardware error packet
 
         // valve_no
@@ -214,6 +229,9 @@ bool decode_message(const char* encoded_message, Message *message) {
         // initialize message
         hardware_error(message, valve_no->valueint, test_point_no->valueint, test_point_high->type == cJSON_True);
 
+    } else if (0 == strncmp("KEEP_ALIVE", type->valuestring, 11)) {
+        // it was a KEEP_ALIVE packet
+        keep_alive(message);
     } else {
         // we don't know what kind of packet that is
         cJSON_Delete(root);

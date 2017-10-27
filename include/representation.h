@@ -26,6 +26,7 @@ extern "C" {
 typedef enum {
     HARD_ERROR, // the monitor found a hardware error
     SOFT_ERROR, // the monitor encountered a software error
+    KEEP_ALIVE, // message from the client to the server to show it is still there
     INVALID,    // invalid message type
 } MessageType;
 
@@ -64,6 +65,9 @@ void hardware_error(Message *message, int valve_no, int test_point_no, bool test
 
 // function to initialise a software error structure
 void software_error(Message *message, const char *string);
+
+// function to initialise a keep alive message
+void keep_alive(Message *message);
 
 // function to encode a message. Dynamically allocates storage
 // returns the size of the encoded message or -1 on error

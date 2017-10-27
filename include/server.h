@@ -31,6 +31,14 @@ typedef struct {
     struct in_addr address; // IPv4 address which sent (or generated) the error
 } BufferItem;
 
+// stores information about an active connection
+typedef struct {
+    int fd;
+    pthread_mutex_t mutex;
+    struct sockaddr_in addr;
+    time_t last_keep_alive;
+} ConnectionData;
+
 // result from reading from a socket (not used externally)
 typedef enum {
     SUCCESS,
@@ -40,6 +48,9 @@ typedef enum {
 
 // frees a BufferItem
 void free_bufferitem(BufferItem *item);
+
+// frees a ConnectionData
+void free_connectiondata(ConnectionData *condata);
 
 // set up the server
 // returns success
