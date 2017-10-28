@@ -341,8 +341,6 @@ static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)
 // realtime signal handler for when there is a connection to the listening socket
 static void connect_handler(__attribute__ ((unused)) int sig, siginfo_t *si, __attribute__ ((unused)) void *ucontext) {
     // accepts a connection from a remote host and sets it up to do signal driven IO
-    printf("connect!\n");
-
     int fd = accept(si->si_fd, NULL, NULL);
     if (-1 == fd)
         return;
@@ -363,6 +361,9 @@ static void connect_handler(__attribute__ ((unused)) int sig, siginfo_t *si, __a
         free(condata);
         return;
     }
+    char addr[160] = {'\n'}; // buffer to hold string-ified ip4 address
+    inet_ntop(AF_INET, &(condata->addr), addr, sizeof(addr));
+    printf("Connect from %s\n", addr);
 
     // set up condata->mutex
     if (-1 == pthread_mutex_init(&(condata->mutex), NULL)) {
@@ -416,7 +417,6 @@ static void check_keep_alive(__attribute__((unused)) gpointer key, gpointer valu
         return;
 
     ConnectionData *condata = (ConnectionData *) value;
-    puts("check keep alive");
 
     // get current time
     time_t now = time(NULL);
