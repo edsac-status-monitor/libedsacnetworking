@@ -22,8 +22,18 @@ extern "C" {
 #include <glib.h>
 #include <arpa/inet.h>
 #include "representation.h"
+#include "sending.h"
 
 // declarations
+
+// how many KEEP_ALIVE messages between checks
+#define KEEP_ALIVE_CHECK_PERIOD 2 
+
+// how many consecutive failed KEEP_ALIVE checks before an error
+#define KEEP_ALIVE_GRACE 3
+
+// the actual time in seconds before an error is signaled
+#define KEEP_ALIVE_PROD ((KEEP_ALIVE_CHECK_PERIOD) * (KEEP_ALIVE_GRACE) * (KEEP_ALIVE_INTERVAL))
 
 // stores a message and the IP address it was from
 typedef struct {
@@ -62,6 +72,14 @@ BufferItem *read_message(void);
 
 // stop the server safely
 void stop_server(void);
+
+// used in server.c and sending.c
+#define DISABLE_SIGNAL(_signal) \
+    memset(&sa, 0, sizeof(sa)); \
+    sa.sa_handler = SIG_DFL; \
+    if (-1 == sigaction(_signal, &sa, NULL)) { \
+        puts("Couldn't disable signal"); \
+    } 
 
 #ifdef _cplusplus
 }

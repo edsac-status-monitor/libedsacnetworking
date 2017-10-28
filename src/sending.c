@@ -100,4 +100,7 @@ bool send_message(const Message *msg) {
 void stop_sending(void) {
     if (-1 != sending_fd)
         close(sending_fd);
+
+    struct sigaction sa;
+    DISABLE_SIGNAL(SIGALRM)
 }

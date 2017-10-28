@@ -20,7 +20,6 @@
 #include <time.h>
 #include <stdio.h>
 #include <assert.h>
-#include "sending.h"
 
 /* So what is going on here?
 The server uses signal driven IO so that it is not constantly polling dosens of clients.
@@ -38,9 +37,6 @@ Periodically these times are checked against the current time to see if everythi
 // ofsets past REALTIMESIGMIN
 #define CONNECT_SIG 1
 #define READ_SIG 2
-
-// how many KEEP_ALIVE messages between checks
-#define KEEP_ALIVE_CHECK_PERIOD 2 
 
 // global read buffer
 static GQueue *read_buff = NULL;
@@ -420,6 +416,7 @@ static void check_keep_alive(__attribute__((unused)) gpointer key, gpointer valu
         return;
 
     ConnectionData *condata = (ConnectionData *) value;
+    puts("check keep alive");
 
     // get current time
     time_t now = time(NULL);
@@ -429,7 +426,7 @@ static void check_keep_alive(__attribute__((unused)) gpointer key, gpointer valu
     // calculate time difference
     time_t diff = now - condata->last_keep_alive;
 
-    if (diff > 3*(KEEP_ALIVE_INTERVAL)*(KEEP_ALIVE_CHECK_PERIOD)) {
+    if (diff > (KEEP_ALIVE_PROD)) {
         char addr[16] = {'\n'}; // buffer to hold string-ified ip4 address
         inet_ntop(AF_INET, &(condata->addr), addr, sizeof(addr));
         printf("No KEEP_ALIVE from %s (fd=%i) for %li seconds!\n", addr, condata->fd, diff);
@@ -563,27 +560,39 @@ void free_bufferitem(BufferItem *item) {
 // free a ConnectionData
 void free_connectiondata(ConnectionData *condata) {
     pthread_mutex_destroy(&(condata->mutex));
+    close(condata->fd);
     free(condata);
 }
 
 void stop_server(void) {
+    // free up the connection table and close all the active connections
+    if (connections_table) {
+        pthread_mutex_lock(&connections_mux);
+        g_hash_table_destroy(connections_table);
+        connections_table = NULL;
+        pthread_mutex_unlock(&connections_mux);
+    }
+    
+    puts("about to close listen socket");
     // close the open socket
     if (-1 != listen_socket) {
         close(listen_socket);
         listen_socket = -1;
     }
+    puts("listen socket closed");
+    
+    // disable signal handlers
+    struct sigaction sa;
+    DISABLE_SIGNAL(SIGRTMIN + READ_SIG)
+    DISABLE_SIGNAL(SIGALRM)
+    DISABLE_SIGNAL(SIGRTMIN + CONNECT_SIG)
 
     // free up the read buffer
     if (read_buff) {
         pthread_mutex_lock(&read_buff_mux);
         g_queue_free_full(read_buff, (GDestroyNotify) free_bufferitem);
+        read_buff = NULL;
         pthread_mutex_unlock(&read_buff_mux);
     }
 
-    // free up the connection table
-    if (connections_table) {
-        pthread_mutex_lock(&connections_mux);
-        g_hash_table_destroy(connections_table);
-        pthread_mutex_unlock(&connections_mux);
-    }
 }

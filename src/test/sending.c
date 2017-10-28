@@ -29,6 +29,7 @@ int main(void) {
         sleep(1000);
     }
 
+    // never run. Just here incase this is used as an example
     stop_sending();
 
     return EXIT_SUCCESS;

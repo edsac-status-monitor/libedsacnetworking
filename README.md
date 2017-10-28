@@ -34,6 +34,8 @@ For function prototypes see the header files in include/.
 
 For code examples, see src/test/*.c.
 
+Note that the server uses  the signals SIGALRM, (SIGRTMIN + CONNECT_SIG) and (SIGRTMIN + READ_SIG) so don't use your own handlers on these signals (definitions of non-standard constants in src/server.c). Sending also uses SIGALRM so the server and sender cannot be used properly in the same process.
+
 ### Setup
 A process may decide to only send, only receive or both send and receive messages.
 
