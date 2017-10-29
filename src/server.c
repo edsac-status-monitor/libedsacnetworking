@@ -361,8 +361,14 @@ static void connect_handler(__attribute__ ((unused)) int sig, siginfo_t *si, __a
         free(condata);
         return;
     }
+    // I found experimentally that getpeername only works on the second call. Tested on Ubuntu, Debian and CentOS
+    if (0 != getpeername(fd, &(condata->addr), &addrlen)) {
+        close(fd);
+        free(condata);
+        return;
+    }
     char addr[160] = {'\n'}; // buffer to hold string-ified ip4 address
-    inet_ntop(AF_INET, &(condata->addr), addr, sizeof(addr));
+    inet_ntop(AF_INET, &(condata->addr.sin_addr.s_addr), addr, sizeof(addr));
     printf("Connect from %s\n", addr);
 
     // set up condata->mutex
@@ -428,7 +434,7 @@ static void check_keep_alive(__attribute__((unused)) gpointer key, gpointer valu
 
     if (diff > (KEEP_ALIVE_PROD)) {
         char addr[16] = {'\n'}; // buffer to hold string-ified ip4 address
-        inet_ntop(AF_INET, &(condata->addr), addr, sizeof(addr));
+        inet_ntop(AF_INET, &(condata->addr.sin_addr.s_addr), addr, sizeof(addr));
         printf("No KEEP_ALIVE from %s (fd=%i) for %li seconds!\n", addr, condata->fd, diff);
 
         // report error and close the connection

@@ -29,7 +29,7 @@ static void strict_sleep(unsigned int left_to_sleep) {
 // tests for a keep_alive failure
 static void test_keep_alive_fail(void) {
     // start server
-    struct sockaddr *addr = alloc_addr("127.0.0.1", 3001);
+    struct sockaddr *addr = alloc_addr("127.0.0.1", 3003);
     assert(NULL != addr);
     assert(true == start_server(addr, sizeof(*addr)));
     
