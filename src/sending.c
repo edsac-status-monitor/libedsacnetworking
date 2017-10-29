@@ -17,6 +17,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
+#include <errno.h>
 
 // file descriptor for the TCP connection to the remote host
 static int sending_fd = -1;
@@ -27,7 +28,11 @@ static bool send_encoded_message(const char* encoded) {
     // send the encoded message
     size_t expected_count = strnlen(encoded, MAX_ENCODED_LEN);
     ssize_t count = write(sending_fd, encoded, expected_count);
-    pthread_mutex_unlock(&fd_mux);
+    int err = pthread_mutex_unlock(&fd_mux);
+    if (0 != err) {
+        printf("Couldn't unlock sending mutex. err=%i\n", errno);
+        exit(EXIT_FAILURE);
+    }
     if (count != (ssize_t) expected_count) {
         return false;
     }
@@ -44,11 +49,12 @@ static void send_keep_alive(__attribute__((unused)) int compulsory) {
 
     // if we interrupt the thread owning the mutex then a _lock() would deadlock
     if (0 != pthread_mutex_trylock(&fd_mux)) {
+        perror("Can't lock mutex");
         return;
         // the server allows several missed keep_alive messages before it errors so this is probably fine
     }
 
-    send_encoded_message(keep_alive_msg);
+    send_encoded_message(keep_alive_msg); // unlocks mutex
 }
 
 bool start_sending(const struct sockaddr *addr, socklen_t addrlen) {

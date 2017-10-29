@@ -42,11 +42,13 @@ int main(int argc, char** argv) {
     puts("Connected");
 
     while(true) {
-        sleep(1000);
+        sleep(100000);
     }
+
+    perror("Unreachable!");
 
     // never run. Just here incase this is used as an example
     stop_sending();
 
-    return EXIT_SUCCESS;
+    return EXIT_FAILURE;
 }
