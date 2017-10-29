@@ -16,7 +16,7 @@
 
 // functions
 
-#define TEST_PAUSE ((KEEP_ALIVE_PROD) + 3)
+#define TEST_PAUSE ((KEEP_ALIVE_PROD) * 2)
 
 // looping because it always seems to wake up early
 static void strict_sleep(unsigned int left_to_sleep) {
