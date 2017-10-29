@@ -1,6 +1,6 @@
 /*
  * Copyright 2017
- * MIT Licensed
+ * GPL3 Licensed
  * test/system.c
  * system test covering server.c and sending.c
  */

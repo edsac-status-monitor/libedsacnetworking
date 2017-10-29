@@ -1,6 +1,6 @@
 /*
  * Copyright 2017
- * MIT Licenced
+ * GPL3 Licensed 
  * test/representation.c
  * Testsuite for representation.c
  */

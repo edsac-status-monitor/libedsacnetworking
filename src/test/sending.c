@@ -1,6 +1,6 @@
 /*
  * Copyright 2017
- * MIT Licensed
+ * GPL3 Licensed
  * test/sending.c
  * Establishes a sending connection and then sleeps forever
  */

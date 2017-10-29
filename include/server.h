@@ -1,6 +1,6 @@
 /*
  * Copyright 2017
- * MIT Licence
+ * GPL3 License
  * server.h
  * Header file for server.c
  */

@@ -1,6 +1,6 @@
 /*
  * Copyright 2017
- * MIT Licensed
+ * GPL3 Licensed
  * test/server.c
  * Starts listening for new messages and then sleeps forever
  */

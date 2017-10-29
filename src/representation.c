@@ -1,6 +1,6 @@
 /*
  * Copyright 2017
- * MIT Licenced
+ * GPL3 Licensed
  * representation.c
  * Functions relating to the representation of network messages
  */

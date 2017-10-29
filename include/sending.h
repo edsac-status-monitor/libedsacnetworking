@@ -1,6 +1,6 @@
 /*
  * Copyright 2017
- * MIT Licensed
+ * GPL3 License
  * sending.h
  * header file for sending.c
  */

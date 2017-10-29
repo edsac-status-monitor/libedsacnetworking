@@ -1,6 +1,6 @@
 /*
  * Copyright 2017
- * MIT Licensed
+ * GPL3 Licensed
  * keep_alive.c
  * Unit test for keep_alive messages
  */

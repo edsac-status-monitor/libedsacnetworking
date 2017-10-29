@@ -1,7 +1,7 @@
 # libnetworking
-This project is part of the work on a status monitor for the EDSAC machine. Network communication between the measurement nodes and the mothership.
+This project is part of the work on a status monitor for the EDSAC machine. Network communication between the measurement nodes and the mothership. This software may be distributed under GPL version 3 (see LICENSE).
 
-** This is not suitable for connection to public networks**
+**This is not suitable for connection to public networks**
 
 cJSON is used directly in this project (contrib/cJSON.c, include/contrib/cJSON.h). cJSON can be found at https://github.com/DaveGamble/cJSON
 

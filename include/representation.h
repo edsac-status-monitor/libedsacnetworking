@@ -1,6 +1,6 @@
 /*
  * Copyright 2017
- * MIT Licence
+ * GPL3 License
  * representation.h
  * Functions relating to the wire representation of data
  */
