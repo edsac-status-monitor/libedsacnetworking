@@ -33,14 +33,12 @@ static void test_encoding(void) {
 
     // test encoding a HARD_ERROR message
     assert(-1 != encode_message(&hardware, &msg));
-    //printf("%s\n", msg);
     assert(0 == strncmp(hardware_expected, msg, MAX_ENCODED_LEN));
     free(msg);
     msg = NULL;
 
     // test encoding a SOFT_ERROR message
     assert(-1 != encode_message(&software, &msg));
-    //printf("%s\n", msg);
     assert(0 == strncmp(software_expected, msg, MAX_ENCODED_LEN));
     free(msg);
     msg = NULL;

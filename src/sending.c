@@ -30,7 +30,7 @@ static bool send_encoded_message(const char* encoded) {
     ssize_t count = write(sending_fd, encoded, expected_count);
     int err = pthread_mutex_unlock(&fd_mux);
     if (0 != err) {
-        printf("Couldn't unlock sending mutex. err=%i\n", errno);
+        perror("Couldn't unlock sending mutex");
         exit(EXIT_FAILURE);
     }
     if (count != (ssize_t) expected_count) {
@@ -91,7 +91,7 @@ bool send_message(const Message *msg) {
 
     // lock mutex
     if (-1 == pthread_mutex_lock(&fd_mux)) {
-        puts("failed to lock sending mutex");
+        perror("failed to lock sending mutex");
         free(encoded);
         return false;
     }

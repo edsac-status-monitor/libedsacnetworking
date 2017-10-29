@@ -21,7 +21,7 @@
 // looping because it always seems to wake up early
 static void strict_sleep(unsigned int left_to_sleep) {
     while (0 != left_to_sleep) {
-        printf("%li seconds left to sleep\n", (long int) left_to_sleep);
+        //printf("%li seconds left to sleep\n", (long int) left_to_sleep);
         left_to_sleep = sleep(left_to_sleep);
     }
 }

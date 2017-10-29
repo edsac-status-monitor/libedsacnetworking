@@ -78,7 +78,7 @@ void stop_server(void);
     memset(&sa, 0, sizeof(sa)); \
     sa.sa_handler = SIG_DFL; \
     if (-1 == sigaction(_signal, &sa, NULL)) { \
-        puts("Couldn't disable signal"); \
+        perror("Couldn't disable signal"); \
     } 
 
 #ifdef _cplusplus

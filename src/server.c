@@ -99,7 +99,7 @@ static ReadStatus read_json_object(int fd, GString **out_string) {
         }
         
         // there may have been data but an unknown error occured
-        printf("Unknown error errno=%i num_read=%li\n", e, num_read);
+        printf("Unknown error errno=%s num_read=%li\n", strerror(e), num_read);
         return ERROR;
     }
 
@@ -132,7 +132,7 @@ static ReadStatus read_json_object(int fd, GString **out_string) {
                 return ERROR;
             } else {
                 // unknown error
-                printf("errno=%i. num_read=%li\n", e, num_read);
+                printf("errno=%s. num_read=%li\n", strerror(e), num_read);
                 return ERROR;
             }
         }
@@ -327,7 +327,7 @@ static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)
     int e = errno;
     if (1 != count) {
         // BUG: this may report the connection close more than once. si_code, errno and count seem the same each time so I don't know how to tell
-        printf("closed connection. fd=%i si_code=%i errno=%i count=%li\n",si->si_fd, si->si_code, e, count);
+        printf("closed connection. fd=%i si_code=%i errno=%s count=%li\n",si->si_fd, si->si_code, strerror(e), count);
 
         // start thread
         pthread_create(&thread, NULL, report_close_thread, (void *) condata); // unlocks the reading mutex
@@ -411,8 +411,6 @@ static void connect_handler(__attribute__ ((unused)) int sig, siginfo_t *si, __a
     }
 
     pthread_mutex_unlock(&connections_mux);
-
-    printf("%i in table\n", fd);
 
     setup_rt_signal_io(fd, SIGRTMIN + READ_SIG, io_handler);
 }

@@ -29,14 +29,14 @@ int main(void) {
 
     puts("starting server");
     if (!start_server(addr, sizeof(*addr))) {
-        puts("failed to start server");
+        perror("failed to start server");
         free(addr);
         return EXIT_FAILURE;
     }
 
     puts("connecting to server");
     if (!start_sending(addr, sizeof(*addr))) {
-        puts("failed to start sending");
+        perror("failed to start sending");
         free(addr);
         return EXIT_FAILURE;
     }
@@ -46,7 +46,7 @@ int main(void) {
 
     puts("sending message");
     if (!send_message(&msg)) {
-        puts("failed to send message");
+        perror("failed to send message");
         return EXIT_FAILURE;
     }
 
