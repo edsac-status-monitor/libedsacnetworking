@@ -23,6 +23,8 @@ keep_alive_pass_test_SOURCES = src/test/keep_alive_pass.c
 keep_alive_pass_test_LDADD = libnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS)
 keep_alive_fail_test_SOURCES = src/test/keep_alive_fail.c
 keep_alive_fail_test_LDADD = libnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS)
+TESTS = representation.test system.test 
 
-TESTS = representation.test system.test keep_alive_pass.test keep_alive_fail.test
+# rule for long-check
+include Makefile.long-check
 

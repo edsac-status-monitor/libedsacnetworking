@@ -24,6 +24,11 @@ Run unit tests using
 make check
 ```
 
+There are additional unit tests for KEEP_ALIVE messages. These tests will take a long time to run. These may be run using
+```
+make long-check
+```
+
 Clean up using
 ```
 make distclean

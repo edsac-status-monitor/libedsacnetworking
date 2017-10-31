@@ -1,0 +1,6 @@
+# the keep alive tests take ages so lets put them on a different target
+.PHONY: long-check
+long-check: keep_alive_pass.test keep_alive_fail.test check
+	./keep_alive_pass.test
+	./keep_alive_fail.test
+	echo "All Passed"
