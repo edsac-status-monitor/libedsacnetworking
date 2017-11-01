@@ -37,7 +37,7 @@ make distclean
 ## Using the library
 For function prototypes see the header files in include/.
 
-For code examples, see src/test/*.c.
+For code examples, see src/test/*.c. In particular, keep\_alive\_pass.c (sending and receiving), server.c (receiving only) and sending.c (sending only).
 
 Note that the server uses  the signals SIGALRM, (SIGRTMIN + CONNECT_SIG) and (SIGRTMIN + READ_SIG) so don't use your own handlers on these signals (definitions of non-standard constants in src/server.c). Sending also uses SIGALRM so the server and sender cannot be used properly in the same process.
 
@@ -73,7 +73,7 @@ void stop_server(void);
 ```
 
 ### Message Structures
-Messages are reperesented by the Message structure found in representation.h:
+Messages are represented by the Message structure found in representation.h:
 ``` c
 typedef struct {
     MessageType type;
@@ -88,29 +88,35 @@ Message msg;
 software_error(&msg, "this is the error message");
 ```
 
-Another type of message is a hardware error. Hardware error messages can be instanced like so:
+Another type of message is a hardware valve error. Hardware valve error messages can be instanced like so:
 ``` c
 Message msg;
-hardware_error(&msg, 1 /* valve number */, 2 /* test point number */, true /* test point high? */);
+hardware_error_valve(&msg, 1 /* valve number */, 2 /* test point number */, true /* test point high? */);
+```
+
+If you need to report a hardware error not specific to a valve then use a hardware other error:
+``` c
+Message msg;
+hardware_error_other(&msg, "this is the error message");
 ```
 
 The source of a message does not need to be set explicitly as it will be communicated by the IP address of the node.
 
 Once we are done with a message its contents should be freed. If the Message structure itself was dynamically allocated then that must be freed separately:
 ``` c
-Message *pmsg = malloc(sizeof(Message));
-assert(NULL != pmsg);
-software_error(pmsg, "this is the error message");
+Message *p_msg = malloc(sizeof(Message));
+assert(NULL != p_msg);
+software_error(p_msg, "this is the error message");
 // ...
-free_message(pmsg);
-free(pmsg);
-pmsg = NULL;
+free_message(p_msg);
+free(p_msg);
+p_msg = NULL;
 ```
 
 ### Sending a Message
 A message can be sent over the network as follows:
 ``` c
-assert(true == send_message(pmsg));
+assert(true == send\_message(p\_msg));
 ```
 
 This must come after the call to start_sending.
@@ -124,7 +130,7 @@ typedef struct {
 } BufferItem;
 ```
 
-A BufferItem can be freed using free_bufferitem(BufferItem \*item). Unlike free_message, *this will call free(item)*. So one should not use statically allocated BufferItems. 
+A BufferItem can be freed using free\_bufferitem(BufferItem \*item). Unlike free\_message, *this will call free(item)*. So one should not use statically allocated BufferItems. 
 
 ### Receiving a Message
 Received messages are received asynchronously using signals and buffered in a queue. When convenient use

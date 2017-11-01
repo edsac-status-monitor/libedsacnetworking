@@ -24,28 +24,36 @@ extern "C" {
 
 // the type of message sent
 typedef enum {
-    HARD_ERROR, // the monitor found a hardware error
-    SOFT_ERROR, // the monitor encountered a software error
-    KEEP_ALIVE, // message from the client to the server to show it is still there
-    INVALID,    // invalid message type
+    HARD_ERROR_VALVE, // the monitor found a hardware error down to a particular valve
+    HARD_ERROR_OTHER, // the monitor found a hardware error which cannot be narrowed down to one valve
+    SOFT_ERROR,       // the monitor encountered a software error
+    KEEP_ALIVE,       // message from the client to the server to show it is still there
+    INVALID,          // invalid message type
 } MessageType;
 
-// hardware error message
+// hardware error valve message
 typedef struct {
-    int valve_no; // the number of the valve expected to be broken
-    int test_point_no; // the number of the test point which was wrong
+    int valve_no;         // the number of the valve expected to be broken
+    int test_point_no;    // the number of the test point which was wrong
     bool test_point_high; // the logic value of the test point
-} HardErrorData;
+} HardErrorValveData;
+
+#define MAX_MSG_LEN 200 // maximum allowable length for SoftErrorData.message and HardErrorOtherData.message
+
+// hardware error other message
+typedef struct {
+    GString *message; // message to be reported in the UI
+} HardErrorOtherData;
 
 // software error message
-#define MAX_MSG_LEN 200 // maximum allowable length for SoftErrorData.message
 typedef struct {
     GString *message; // message to be reported to the UI
 } SoftErrorData;
 
 // combined representation of the data sections
 typedef union {
-    HardErrorData hardware;
+    HardErrorValveData hardware_valve;
+    HardErrorOtherData hardware_other;
     SoftErrorData software;
 } MessageData;
 
@@ -60,8 +68,11 @@ typedef struct {
 // the returned address should be free()'ed after use
 struct sockaddr *alloc_addr(const char *addr, uint16_t port);
 
-// function to initialise a hardware error structure
-void hardware_error(Message *message, int valve_no, int test_point_no, bool test_point_high);
+// function to initialise a hardware error valve structure
+void hardware_error_valve(Message *message, int valve_no, int test_point_no, bool test_point_high);
+
+// function to initialise a hardware error other structure
+void hardware_error_other(Message *message, const char *string);
 
 // function to initialise a software error structure
 void software_error(Message *message, const char *string);

@@ -17,6 +17,7 @@
 #include <string.h>
 
 // creates a server and client and tests that messages can be sent successfully between them
+// keep alive message will not work here because the SIGALRM handlers will overide eachother. It doesn't matter because this should be over quickly anyway
 int main(void) {
     // sent as the body of a software error
     const char *test_message = "hello world!";
