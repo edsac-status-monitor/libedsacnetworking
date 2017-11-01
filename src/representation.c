@@ -40,33 +40,29 @@ struct sockaddr *alloc_addr(const char *addr, uint16_t port) {
     return (struct sockaddr *) ret;
 }
 
-// initialises a hardware error valve message
-void hardware_error_valve(Message *message, int valve_no, int test_point_no, bool test_point_high) {
-    if (NULL == message)
-        return;
+// shorthand for the initialisation functions
+#define PRINTABLE_MSG(_message, _string, _data_type, _type) \
+    if (NULL == _message){ \
+        return; \
+    } \
+    _message->type = _type; \
+    _message->data._data_type.message = g_string_new(_string); // if _string is NULL then g_string_new will just return NULL
 
-    message->type = HARD_ERROR_VALVE;
+// initialises a hardware error valve message
+void hardware_error_valve(Message *message, int valve_no, const char *string) {
+    PRINTABLE_MSG(message, string, hardware_valve, HARD_ERROR_VALVE)
+
     message->data.hardware_valve.valve_no = valve_no;
-    message->data.hardware_valve.test_point_no = test_point_no;
-    message->data.hardware_valve.test_point_high = test_point_high;
 }
 
 // initialises a hardware error other message
 void hardware_error_other(Message *message, const char *string) {
-    if (NULL == message)
-        return;
-
-    message->type = HARD_ERROR_OTHER;
-    message->data.hardware_other.message = g_string_new(string);
+    PRINTABLE_MSG(message, string, hardware_other, HARD_ERROR_OTHER)
 }
 
 // initialises a software error message
 void software_error(Message *message, const char *string) {
-    if (NULL == message)
-        return;
-
-    message->type = SOFT_ERROR;
-    message->data.software.message = g_string_new(string);
+    PRINTABLE_MSG(message, string, software, SOFT_ERROR)
 }
 
 // initialises a keep alive message
@@ -83,6 +79,17 @@ void keep_alive(Message *message) {
         cJSON_Delete(_root); \
         return _ret_val; \
     }
+
+// shorthand for decoding similar messages
+#define PRINTABLE_MSG_DECODE(_data_type, _type) \
+    /* message type */ \
+    cJSON *_data_type##_t = cJSON_CreateString(_type); \
+    NULL_CHECK(_data_type##_t, root, -1) \
+    cJSON_AddItemToObject(root, "type", _data_type##_t); \
+    /* message */ \
+    cJSON *cjson_message_##_data_type = cJSON_CreateString(message->data._data_type.message->str); \
+    NULL_CHECK(cjson_message_##_data_type, root, -1) \
+    cJSON_AddItemToObject(data, "message", cjson_message_##_data_type); 
 
 // encode a message structure into a format to be transmitted
 // returns the length of the encoded_message string
@@ -110,49 +117,20 @@ ssize_t encode_message(const Message *message, char **encoded_message) {
     switch (message->type) {
         // hardware error valve
         case HARD_ERROR_VALVE: ;  // ; is because C won't define a variable as the first statement after a goto
-            // message type
-            cJSON *hard_err_type = cJSON_CreateString("HARD_ERROR_VALVE");
-            NULL_CHECK(hard_err_type, root, -1)
-            cJSON_AddItemToObject(root, "type", hard_err_type);
+            PRINTABLE_MSG_DECODE(hardware_valve, "HARD_ERROR_VALVE")
 
             // valve_no
             cJSON *valve_no = cJSON_CreateNumber((double) message->data.hardware_valve.valve_no);
             NULL_CHECK(valve_no, root, -1)
             cJSON_AddItemToObject(data, "valve_no", valve_no);
-
-            // test_point_no
-            cJSON *test_point_no = cJSON_CreateNumber((double) message->data.hardware_valve.test_point_no);
-            NULL_CHECK(test_point_no, root, -1)
-            cJSON_AddItemToObject(data, "test_point_no", test_point_no);
-
-            // test_point_high
-            cJSON *test_point_high = cJSON_CreateBool(message->data.hardware_valve.test_point_high);
-            NULL_CHECK(test_point_high, root, -1)
-            cJSON_AddItemToObject(data, "test_point_high", test_point_high);
             break;
 
         case HARD_ERROR_OTHER: ;
-            // message type
-            cJSON *hard_err_other_type = cJSON_CreateString("HARD_ERROR_OTHER");
-            NULL_CHECK(hard_err_other_type, root, -1)
-            cJSON_AddItemToObject(root, "type", hard_err_other_type);
-
-            // message
-            cJSON *cjson_message_hard = cJSON_CreateString(message->data.software.message->str);
-            NULL_CHECK(cjson_message_hard, root, -1)
-            cJSON_AddItemToObject(data, "message", cjson_message_hard);
+            PRINTABLE_MSG_DECODE(hardware_other, "HARD_ERROR_OTHER")
             break;
 
         case SOFT_ERROR: ;
-            // message type
-            cJSON *soft_err_type = cJSON_CreateString("SOFT_ERROR");
-            NULL_CHECK(soft_err_type, root, -1)
-            cJSON_AddItemToObject(root, "type", soft_err_type);
-
-            // message
-            cJSON *cjson_message = cJSON_CreateString(message->data.software.message->str);
-            NULL_CHECK(cjson_message, root, -1)
-            cJSON_AddItemToObject(data, "message", cjson_message);
+            PRINTABLE_MSG_DECODE(software, "SOFT_ERROR")
             break;
 
         case KEEP_ALIVE: ;
@@ -188,6 +166,15 @@ ssize_t encode_message(const Message *message, char **encoded_message) {
         return false; \
     } \
 
+// shorthand for decoding similar message types
+#define PRINTABLE_MSG_ENCODE(_type) \
+    if (0 == strncmp(_type, type->valuestring, strlen(_type))) { \
+        /* it was a software error packet */ \
+        /* get description string */ \
+        cJSON *description = cJSON_GetObjectItem(data, "message"); \
+        NULL_CHECK(description, root, false) \
+        EXPECT_TYPE(description, String)
+
 // decode a string into a message structure
 // returns success
 bool decode_message(const char* encoded_message, Message *message) {
@@ -218,29 +205,16 @@ bool decode_message(const char* encoded_message, Message *message) {
     NULL_CHECK(type, root, false)
     EXPECT_TYPE(type, String)
 
-    if (0 == strncmp("SOFT_ERROR", type->valuestring, 11)) {
-        // it was a software error packet 
-
-        // get description string
-        cJSON *description = cJSON_GetObjectItem(data, "message");
-        NULL_CHECK(description, root, false)
-        EXPECT_TYPE(description, String)
-
-        // initialise message
-        // GLIB makes a copy so we don't need to worry when calling cJSON_Delete
+    PRINTABLE_MSG_ENCODE("SOFT_ERR")
+        /* initialise message */
+        /* GLIB makes a copy so we don't need to worry when calling cJSON_Delete */
         software_error(message, description->valuestring);
-    } else if (0 == strncmp("HARD_ERROR_OTHER", type->valuestring, 17)) {
+    } else PRINTABLE_MSG_ENCODE("HARD_ERROR_OTHER")
         // it was a hardware error other packet
-
-        // get description string
-        cJSON *description = cJSON_GetObjectItem(data, "message");
-        NULL_CHECK(description, root, false)
-        EXPECT_TYPE(description, String)
-
         // initialise message
         // GLIB copies the message so we don't need to worry about cJSON_Delete
         hardware_error_other(message, description->valuestring);
-    } else if (0 == strncmp("HARD_ERROR_VALVE", type->valuestring, 17)) {
+    } else PRINTABLE_MSG_ENCODE("HARD_ERROR_VALVE")
         // it was a hardware error valve packet
 
         // valve_no
@@ -248,19 +222,8 @@ bool decode_message(const char* encoded_message, Message *message) {
         NULL_CHECK(valve_no, root, false)
         EXPECT_TYPE(valve_no, Number)
 
-        // test_point_no
-        cJSON *test_point_no = cJSON_GetObjectItem(data, "test_point_no");
-        NULL_CHECK(test_point_no, root, false)
-        EXPECT_TYPE(test_point_no, Number)
-
-        // test_point_high
-        cJSON *test_point_high = cJSON_GetObjectItem(data, "test_point_high");
-        NULL_CHECK(test_point_high, root, false)
-        EXPECT_TYPE(test_point_high, Bool)
-
         // initialize message
-        hardware_error_valve(message, valve_no->valueint, test_point_no->valueint, test_point_high->type == cJSON_True);
-
+        hardware_error_valve(message, valve_no->valueint, description->valuestring);
     } else if (0 == strncmp("KEEP_ALIVE", type->valuestring, 11)) {
         // it was a KEEP_ALIVE packet
         keep_alive(message);
@@ -286,6 +249,9 @@ void free_message(Message *msg) {
     } else if (HARD_ERROR_OTHER == msg->type) {
         g_string_free(msg->data.hardware_other.message, true);
         msg->data.hardware_other.message = NULL;
+    } else if (HARD_ERROR_VALVE == msg->type) {
+        g_string_free(msg->data.hardware_valve.message, true);
+        msg->data.hardware_valve.message = NULL;
     }
 
     // mark the message as free'ed

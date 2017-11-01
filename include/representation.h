@@ -34,8 +34,7 @@ typedef enum {
 // hardware error valve message
 typedef struct {
     int valve_no;         // the number of the valve expected to be broken
-    int test_point_no;    // the number of the test point which was wrong
-    bool test_point_high; // the logic value of the test point
+    GString *message;     // a description of the error
 } HardErrorValveData;
 
 #define MAX_MSG_LEN 200 // maximum allowable length for SoftErrorData.message and HardErrorOtherData.message
@@ -69,7 +68,7 @@ typedef struct {
 struct sockaddr *alloc_addr(const char *addr, uint16_t port);
 
 // function to initialise a hardware error valve structure
-void hardware_error_valve(Message *message, int valve_no, int test_point_no, bool test_point_high);
+void hardware_error_valve(Message *message, int valve_no, const char *string);
 
 // function to initialise a hardware error other structure
 void hardware_error_other(Message *message, const char *string);
@@ -92,7 +91,7 @@ bool decode_message(const char* encoded_message, Message *message);
 void free_message(Message *msg);
 
 // internals
-#define DATA_FORMAT_VERSION 1.0
+#define DATA_FORMAT_VERSION 2.0
 #define MAX_ENCODED_LEN ((MAX_MSG_LEN) + 100) // approximate
 
 #ifdef _cplusplus

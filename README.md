@@ -91,8 +91,9 @@ software_error(&msg, "this is the error message");
 Another type of message is a hardware valve error. Hardware valve error messages can be instanced like so:
 ``` c
 Message msg;
-hardware_error_valve(&msg, 1 /* valve number */, 2 /* test point number */, true /* test point high? */);
+hardware_error_valve(&msg, 1 /* valve number */, "this is the error message");
 ```
+Hardware valve errors should be used whenever an error can be isolated to a particular valve.
 
 If you need to report a hardware error not specific to a valve then use a hardware other error:
 ``` c
