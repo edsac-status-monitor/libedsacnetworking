@@ -64,6 +64,7 @@ int main(void) {
     assert(soft_err->msg.type == msg.type);
     // same content
     assert(0 == strncmp(test_message, soft_err->msg.data.software.message->str, strlen(test_message)));
+    assert(-1 != soft_err->recv_time);
     free_bufferitem(soft_err);
     
     // get the disconnect message from the queue

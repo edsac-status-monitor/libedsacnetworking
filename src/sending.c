@@ -42,7 +42,7 @@ static bool send_encoded_message(const char* encoded) {
 
 // called periodically to send a KEEP_ALIVE message
 static void send_keep_alive(__attribute__((unused)) int compulsory) {
-    const char* keep_alive_msg = "{\"version\":1,\"data\":{},\"type\":\"KEEP_ALIVE\"}";
+    const char* keep_alive_msg = "{\"version\":2,\"data\":{},\"type\":\"KEEP_ALIVE\"}";
 
     // set up the next alarm
     alarm(KEEP_ALIVE_INTERVAL);

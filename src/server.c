@@ -176,7 +176,7 @@ static ReadStatus fetch_item(ConnectionData *condata) {
 
     // decode JSON
     if (!decode_message(obj->str, &(item->msg))) {
-        puts("decode error\n");
+        printf("decode error on: %s\n", obj->str);
         // report this BufferItem as a software error
         software_error(&(item->msg), "Could not decode message");
     }
@@ -186,12 +186,10 @@ static ReadStatus fetch_item(ConnectionData *condata) {
     if (KEEP_ALIVE == item->msg.type) {
         free_bufferitem(item);
         // update last_keep_alive
-        if (-1 == time(&(condata->last_keep_alive))) {
-            puts("couldn't get time");
-            return ERROR;
-        }
+        condata->last_keep_alive = time(NULL);
     } else { // "real" messages
         item->address = condata->addr.sin_addr;
+        item->recv_time = time(NULL);
 
         // add the item to the queue
         g_queue_push_tail(read_buff, (gpointer) item);
@@ -275,6 +273,7 @@ static void *report_close_thread(void *arg) {
     }
     
     item->address = condata->addr.sin_addr;
+    item->recv_time = time(NULL);
     
     software_error(&(item->msg), "Connection closed");
     
@@ -441,6 +440,7 @@ static void check_keep_alive(__attribute__((unused)) gpointer key, gpointer valu
             return;
         software_error(&(err->msg), "Connection timeout");
         memcpy(&(err->address), &(condata->addr), sizeof(err->address));
+        err->recv_time = time(NULL);
 
         if (0 != pthread_mutex_trylock(&read_buff_mux)) {
             free_bufferitem(err);
@@ -481,12 +481,15 @@ bool start_server(const struct sockaddr *addr, socklen_t addrlen) {
     // non-blocking so we can use signal driven IO
     // cloexec for security (closes fd on an exec() syscall)
     listen_socket = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
-    if (-1 == listen_socket)
+    if (-1 == listen_socket) {
+        perror("start_server: listening");
         return false;
+    }
 
     // bind to the specified address
     if (-1 == bind(listen_socket, addr, addrlen)) {
         close(listen_socket);
+        perror("start_server: binding");
         listen_socket = -1;
         return false;
     }

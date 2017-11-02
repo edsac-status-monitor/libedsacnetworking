@@ -23,6 +23,7 @@ extern "C" {
 #include <arpa/inet.h>
 #include "representation.h"
 #include "sending.h"
+#include <time.h>
 
 // declarations
 
@@ -39,6 +40,7 @@ extern "C" {
 typedef struct {
     Message msg; // Error Message
     struct in_addr address; // IPv4 address which sent (or generated) the error
+    time_t recv_time; // the time at which the message was received
 } BufferItem;
 
 // stores information about an active connection

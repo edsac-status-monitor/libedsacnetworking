@@ -128,6 +128,7 @@ BufferItem is defined in server.h as follows:
 typedef struct {
     Message msg; // Error Message
     struct in_addr address; // IPv4 address which sent (or generated) the error
+    time_t recv_time; // the time at which the message was received
 } BufferItem;
 ```
 
