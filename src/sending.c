@@ -28,12 +28,15 @@ static bool send_encoded_message(const char* encoded) {
     // send the encoded message
     size_t expected_count = strnlen(encoded, MAX_ENCODED_LEN);
     ssize_t count = write(sending_fd, encoded, expected_count);
+    const int write_errno = errno; // incase pthread_mutex_unlock changes errno
     int err = pthread_mutex_unlock(&fd_mux);
     if (0 != err) {
         perror("Couldn't unlock sending mutex");
         exit(EXIT_FAILURE);
     }
     if (count != (ssize_t) expected_count) {
+        printf("Error writing message to socket. expected_count = %li, count = %li, errno = %i, %s\n",
+            expected_count, count, write_errno, strerror(write_errno));
         return false;
     }
 
