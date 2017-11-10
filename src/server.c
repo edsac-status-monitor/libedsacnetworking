@@ -20,6 +20,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <assert.h>
+#include "timer.h"
 
 /* So what is going on here?
 The server uses signal driven IO so that it is not constantly polling dosens of clients.
@@ -31,7 +32,7 @@ already has the control mutex locked (in which case a deadlock would occur if we
 When a message is read in it is added to the read_buff queue. Items are requested and returned from this queue at some later time using read_message()
 
 Also, clients are expected to periodically send KEEP_ALIVE messages so that we know that they are running. The time of the most recent one of these is stored in the connection table.
-Periodically these times are checked against the current time to see if everything is it should be. This is done on the signal handler for SIGALRM.
+Periodically these times are checked against the current time to see if everything is it should be. 
 */
 
 // ofsets past REALTIMESIGMIN
@@ -48,6 +49,9 @@ static GHashTable *connections_table = NULL;
 
 // the listening socket
 static int listen_socket = -1;
+
+// the timer id
+timer_t timer_id;
 
 // sets up a fd for realtime signal IO using signal sig, handled by handler
 static bool setup_rt_signal_io(int fd, int sig, void (*handler)(int, siginfo_t *, void *)) {
@@ -454,10 +458,7 @@ static void check_keep_alive(__attribute__((unused)) gpointer key, gpointer valu
 }
 
 // called periodically to check if we have received a KEEP_ALIVE message recently
-static void iter_keep_alives(__attribute__((unused)) int compulsory) {
-    // schedule the next run of this
-    alarm((KEEP_ALIVE_INTERVAL) * (KEEP_ALIVE_CHECK_PERIOD));
-
+static void iter_keep_alives(__attribute__((unused)) void *compulsory) {
     // get lock on connections_table
     // only doing trylock because it doesn't matter if we skip this every so often
     if (0 != pthread_mutex_trylock(&connections_mux)) {
@@ -522,7 +523,7 @@ bool start_server(const struct sockaddr *addr, socklen_t addrlen) {
     }
 
     // set up keep_alive checker
-    if (SIG_ERR == signal(SIGALRM, iter_keep_alives)) {
+    if (false == create_timer((timer_handler_t) iter_keep_alives, &timer_id, (KEEP_ALIVE_INTERVAL) * (KEEP_ALIVE_CHECK_PERIOD))) {
         close(listen_socket);
         listen_socket = -1;
         g_queue_free(read_buff);
@@ -531,7 +532,6 @@ bool start_server(const struct sockaddr *addr, socklen_t addrlen) {
         connections_table = NULL;
         return false;
     }
-    alarm((KEEP_ALIVE_INTERVAL) * (KEEP_ALIVE_CHECK_PERIOD));
 
     // begin listening on the socket
     if (-1 == listen(listen_socket, SOMAXCONN)) {
@@ -591,8 +591,10 @@ void stop_server(void) {
     // disable signal handlers
     struct sigaction sa;
     DISABLE_SIGNAL(SIGRTMIN + READ_SIG)
-    DISABLE_SIGNAL(SIGALRM)
     DISABLE_SIGNAL(SIGRTMIN + CONNECT_SIG)
+
+    // disable KEEP_ALIVE check
+    stop_timer(timer_id);
 
     // free up the read buffer
     if (read_buff) {

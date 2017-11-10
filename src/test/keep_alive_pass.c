@@ -28,6 +28,7 @@ static void strict_sleep(unsigned int left_to_sleep) {
 
 // signal handler or SIGTERM to clean up the sender process
 static void sigterm_cleanup(__attribute__((unused)) int compulsory) {
+    perror("Client got sigterm\n");
     stop_sending();
 }
 
@@ -53,7 +54,7 @@ int main(void) {
             signal(SIGTERM, sigterm_cleanup);
             // wait for the main process to kill us
             while(true) {
-                sleep(100);
+                pause();
             }
             return EXIT_FAILURE; // we shouldn't get here
         default:

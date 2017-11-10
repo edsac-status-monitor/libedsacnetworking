@@ -35,7 +35,17 @@
                 "/usr/include/linux",
                 "/usr/include/glib-2.0",
                 "/usr/lib/x86_64-linux-gnu/glib-2.0/include",
-                "${workspaceRoot}/include"
+                "${workspaceRoot}/include",
+                "/usr/include/c++/6/tr1",
+                "/usr/include/c++/6",
+                "/usr/include/x86_64-linux-gnu/c++/6",
+                "/usr/include/x86_64-linux-gnu/c++/6",
+                "/usr/include/x86_64-linux-gnu/c++/6",
+                "/usr/include/x86_64-linux-gnu/c++/6",
+                "/usr/include/x86_64-linux-gnu/c++/6",
+                "/usr/include/x86_64-linux-gnu/c++/6",
+                "/usr/include/x86_64-linux-gnu/c++/6",
+                "/usr/include/x86_64-linux-gnu/c++/6"
             ],
             "defines": [],
             "intelliSenseMode": "clang-x64",

@@ -18,10 +18,12 @@
 #include <signal.h>
 #include <stdio.h>
 #include <errno.h>
+#include "timer.h"
 
 // file descriptor for the TCP connection to the remote host
 static int sending_fd = -1;
 static pthread_mutex_t fd_mux = PTHREAD_MUTEX_INITIALIZER;
+static timer_t timer;
 
 // locking has to be done first but this will unlock
 static bool send_encoded_message(const char* encoded) {
@@ -44,11 +46,8 @@ static bool send_encoded_message(const char* encoded) {
 }
 
 // called periodically to send a KEEP_ALIVE message
-static void send_keep_alive(__attribute__((unused)) int compulsory) {
+static void send_keep_alive(__attribute__((unused)) void *compulsory) {
     const char* keep_alive_msg = "{\"version\":2,\"data\":{},\"type\":\"KEEP_ALIVE\"}";
-
-    // set up the next alarm
-    alarm(KEEP_ALIVE_INTERVAL);
 
     // if we interrupt the thread owning the mutex then a _lock() would deadlock
     if (0 != pthread_mutex_trylock(&fd_mux)) {
@@ -73,14 +72,7 @@ bool start_sending(const struct sockaddr *addr, socklen_t addrlen) {
     }
 
     // periodically send KEEP_ALIVE message
-    if (SIG_ERR == signal(SIGALRM, send_keep_alive)) {
-        close(sending_fd);
-        sending_fd = -1;
-        return false;
-    }
-    alarm(KEEP_ALIVE_INTERVAL);
-
-    return true;
+    return create_timer((timer_handler_t) send_keep_alive, &timer, KEEP_ALIVE_INTERVAL);
 }
 
 bool send_message(const Message *msg) {
@@ -110,6 +102,5 @@ void stop_sending(void) {
     if (-1 != sending_fd)
         close(sending_fd);
 
-    struct sigaction sa;
-    DISABLE_SIGNAL(SIGALRM)
+    stop_timer(timer);
 }
