@@ -172,7 +172,7 @@ static ReadStatus fetch_item(ConnectionData *condata) {
 
     // attempt to read in the json object
     GString *obj;
-    ReadStatus status = read_json_object(condata->fd, &obj);
+    ReadStatus status = read_json_object(condata->fd, &obj); // frees obj on error
     if (SUCCESS != status) {
         free(item);
         return status;
@@ -238,8 +238,7 @@ static void *object_reader_thread(void *arg) {
     
     // get exclusive access to read_buff
     if (0 != pthread_mutex_lock(&read_buff_mux)) {
-        puts("object reader could not get the read_buff mutex");
-        free(arg);
+        perror("object reader could not get the read_buff mutex");
         return NULL;
     }
     
@@ -304,7 +303,7 @@ static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)
 
     // look up the file descriptor in the connections table
     if (0 != pthread_mutex_lock(&connections_mux)) {
-        puts("couldn't lock connections table");
+        perror("couldn't lock connections table");
         return;
     }
 
@@ -318,7 +317,7 @@ static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)
 
     // get the exclusive right to do reading as early as we can incase another thread closes the file descriptor
     if (0 != pthread_mutex_lock(&(condata->mutex))) {
-        puts("can't lock reading mux");
+        perror("can't lock reading mux");
         return;
     }
 
@@ -334,11 +333,13 @@ static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)
 
         // start thread
         pthread_create(&thread, NULL, report_close_thread, (void *) condata); // unlocks the reading mutex
+        pthread_detach(thread);
         return;
     }
 
     // do the actual reading in a different thread (see comment on thread function)
     pthread_create(&thread, NULL, object_reader_thread, (void *) condata); // this thread unlocks the reading mux when it is done
+    pthread_detach(thread);
 }
 
 // realtime signal handler for when there is a connection to the listening socket
@@ -566,28 +567,17 @@ void free_bufferitem(BufferItem *item) {
 
 // free a ConnectionData
 void free_connectiondata(ConnectionData *condata) {
+    pthread_mutex_lock(&(condata->mutex));
     pthread_mutex_destroy(&(condata->mutex));
     close(condata->fd);
     free(condata);
 }
 
+void do_nothing(__attribute__((unused)) int compulsory) {
+    // literally do nothing
+}
+
 void stop_server(void) {
-    // free up the connection table and close all the active connections
-    if (connections_table) {
-        pthread_mutex_lock(&connections_mux);
-        g_hash_table_destroy(connections_table);
-        connections_table = NULL;
-        pthread_mutex_unlock(&connections_mux);
-    }
-    
-    puts("about to close listen socket");
-    // close the open socket
-    if (-1 != listen_socket) {
-        close(listen_socket);
-        listen_socket = -1;
-    }
-    puts("listen socket closed");
-    
     // disable signal handlers
     struct sigaction sa;
     DISABLE_SIGNAL(SIGRTMIN + READ_SIG)
@@ -595,6 +585,22 @@ void stop_server(void) {
 
     // disable KEEP_ALIVE check
     stop_timer(timer_id);
+
+    puts("about to close listen socket");
+    // close the open socket
+    if (-1 != listen_socket) {
+        close(listen_socket);
+        listen_socket = -1;
+    }
+    puts("listen socket closed");
+
+    // free up the connection table and close all the active connections
+    if (connections_table) {
+        pthread_mutex_lock(&connections_mux);
+        g_hash_table_destroy(connections_table);
+        connections_table = NULL;
+        pthread_mutex_unlock(&connections_mux);
+    }
 
     // free up the read buffer
     if (read_buff) {

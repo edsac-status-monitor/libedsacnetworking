@@ -44,6 +44,7 @@ int main(int argc, char** argv) {
         sleep(1000);
     }
 
+    puts("stopping server");
     stop_server();
 
     return EXIT_SUCCESS;

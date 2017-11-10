@@ -75,10 +75,13 @@ BufferItem *read_message(void);
 // stop the server safely
 void stop_server(void);
 
+// function that does nothing
+void do_nothing(int unused);
+
 // used in server.c and sending.c
 #define DISABLE_SIGNAL(_signal) \
     memset(&sa, 0, sizeof(sa)); \
-    sa.sa_handler = SIG_DFL; \
+    sa.sa_handler = do_nothing; \
     if (-1 == sigaction(_signal, &sa, NULL)) { \
         perror("Couldn't disable signal"); \
     } 
