@@ -5,7 +5,7 @@
 AC_PREREQ([2.69])
 
 # project metadata
-AC_INIT([libnetworking], [0.0.1], [tde1g14 soton ac uk])
+AC_INIT([libnetworking], [1.0.0], [tde1g14 soton ac uk])
 
 # put auxiliary files in subdirectories to reduce clutter
 AC_CONFIG_MACRO_DIR([m4])
@@ -57,5 +57,9 @@ AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_FUNC_STRTOD
 AC_CHECK_FUNCS([localeconv memset])
+
+# install pkg_config files for our library
+PKG_INSTALLDIR
+AC_CONFIG_FILES([libnetworking.pc])
 
 AC_OUTPUT

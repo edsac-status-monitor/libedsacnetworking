@@ -1,6 +1,9 @@
 # make static library target
 lib_LTLIBRARIES = libnetworking.la
-libnetworking_la_SOURCES = src/representation.c src/contrib/cJSON.c include/representation.h include/contrib/cJSON.h src/server.c include/server.h src/sending.c include/sending.h src/timer.c src/timer.h
+libnetworking_la_SOURCES = src/representation.c src/contrib/cJSON.c include/representation.h include/contrib/cJSON.h src/server.c include/server.h src/sending.c include/sending.h src/timer.c include/timer.h
+
+# package config file
+pkgconfig_DATA = libnetworking.pc
 
 # make subdirectories work
 ACLOCAL_AMFLAGS = -I m4 --install
@@ -30,4 +33,3 @@ TESTS = representation.test system.test
 
 # rule for long-check
 include Makefile.long-check
-
