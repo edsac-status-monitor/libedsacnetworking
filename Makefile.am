@@ -1,9 +1,9 @@
 # make static library target
-lib_LTLIBRARIES = libnetworking.la
-libnetworking_la_SOURCES = src/representation.c src/contrib/cJSON.c include/representation.h include/contrib/cJSON.h src/server.c include/server.h src/sending.c include/sending.h src/timer.c include/timer.h
+lib_LTLIBRARIES = libedsacnetworking.la
+libedsacnetworking_la_SOURCES = src/representation.c src/contrib/cJSON.c include/representation.h include/contrib/cJSON.h src/server.c include/server.h src/sending.c include/sending.h src/timer.c include/timer.h
 
 # package config file
-pkgconfig_DATA = libnetworking.pc
+pkgconfig_DATA = libedsacnetworking.pc
 
 # make subdirectories work
 ACLOCAL_AMFLAGS = -I m4 --install
@@ -18,17 +18,17 @@ RT_LIBS = -lrt
 # Unit tests
 check_PROGRAMS = representation.test system.test server.test sending.test keep_alive_pass.test keep_alive_fail.test
 representation_test_SOURCES = src/test/representation.c
-representation_test_LDADD = libnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
+representation_test_LDADD = libedsacnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
 system_test_SOURCES = src/test/system.c
-system_test_LDADD = libnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
+system_test_LDADD = libedsacnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
 server_test_SOURCES = src/test/server.c
-server_test_LDADD = libnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
+server_test_LDADD = libedsacnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
 sending_test_SOURCES = src/test/sending.c
-sending_test_LDADD = libnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
+sending_test_LDADD = libedsacnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
 keep_alive_pass_test_SOURCES = src/test/keep_alive_pass.c
-keep_alive_pass_test_LDADD = libnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
+keep_alive_pass_test_LDADD = libedsacnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
 keep_alive_fail_test_SOURCES = src/test/keep_alive_fail.c
-keep_alive_fail_test_LDADD = libnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
+keep_alive_fail_test_LDADD = libedsacnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
 TESTS = representation.test system.test 
 
 # rule for long-check
