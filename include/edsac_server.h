@@ -42,26 +42,8 @@ typedef struct {
     time_t recv_time; // the time at which the message was received
 } BufferItem;
 
-// stores information about an active connection
-typedef struct {
-    int fd;
-    pthread_mutex_t mutex;
-    struct sockaddr_in addr;
-    time_t last_keep_alive;
-} ConnectionData;
-
-// result from reading from a socket (not used externally)
-typedef enum {
-    SUCCESS,
-    ERROR,
-    END
-} ReadStatus;
-
 // frees a BufferItem
 void free_bufferitem(BufferItem *item);
-
-// frees a ConnectionData
-void free_connectiondata(ConnectionData *condata);
 
 // set up the server
 // returns success
@@ -73,17 +55,6 @@ BufferItem *read_message(void);
 
 // stop the server safely
 void stop_server(void);
-
-// function that does nothing
-void do_nothing(int unused);
-
-// used in server.c and sending.c
-#define DISABLE_SIGNAL(_signal) \
-    memset(&sa, 0, sizeof(sa)); \
-    sa.sa_handler = do_nothing; \
-    if (-1 == sigaction(_signal, &sa, NULL)) { \
-        perror("Couldn't disable signal"); \
-    } 
 
 #ifdef _cplusplus
 }

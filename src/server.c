@@ -5,6 +5,19 @@
  * Functions for running the server
  */
 
+/* So what is going on here?
+The server uses signal driven IO so that it is not constantly polling dosens of clients.
+We use two signal handlers: CONNECT_SIG for when a new client connects and READ_SIG for when new IO is available on a socket
+
+The handler for READ_SIG is quite complex. It can only access shared resources asynchronously by spawning worker threads incase we are interupting code
+already has the control mutex locked (in which case a deadlock would occur if we operated synchronously).
+
+When a message is read in it is added to the read_buff queue. Items are requested and returned from this queue at some later time using read_message()
+
+Also, clients are expected to periodically send KEEP_ALIVE messages so that we know that they are running. The time of the most recent one of these is stored in the connection table.
+Periodically these times are checked against the current time to see if everything is it should be. 
+*/
+
 // includes
 #include "config.h"
 #include "edsac_server.h"
@@ -22,18 +35,22 @@
 #include <assert.h>
 #include "edsac_timer.h"
 
-/* So what is going on here?
-The server uses signal driven IO so that it is not constantly polling dosens of clients.
-We use two signal handlers: CONNECT_SIG for when a new client connects and READ_SIG for when new IO is available on a socket
+// stores information about an active connection
+typedef struct {
+    int fd;
+    pthread_mutex_t mutex;
+    struct sockaddr_in addr;
+    time_t last_keep_alive;
+} ConnectionData;
 
-The handler for READ_SIG is quite complex. It can only access shared resources asynchronously by spawning worker threads incase we are interupting code
-already has the control mutex locked (in which case a deadlock would occur if we operated synchronously).
+// result from reading from a socket (not used externally)
+typedef enum {
+    SUCCESS,
+    ERROR,
+    END
+} ReadStatus;
 
-When a message is read in it is added to the read_buff queue. Items are requested and returned from this queue at some later time using read_message()
-
-Also, clients are expected to periodically send KEEP_ALIVE messages so that we know that they are running. The time of the most recent one of these is stored in the connection table.
-Periodically these times are checked against the current time to see if everything is it should be. 
-*/
+static void free_connectiondata(ConnectionData *condata);
 
 // ofsets past REALTIMESIGMIN
 #define CONNECT_SIG 1
@@ -566,16 +583,24 @@ void free_bufferitem(BufferItem *item) {
 }
 
 // free a ConnectionData
-void free_connectiondata(ConnectionData *condata) {
+static void free_connectiondata(ConnectionData *condata) {
     pthread_mutex_lock(&(condata->mutex));
     pthread_mutex_destroy(&(condata->mutex));
     close(condata->fd);
     free(condata);
 }
 
-void do_nothing(__attribute__((unused)) int compulsory) {
+static void do_nothing(__attribute__((unused)) int compulsory) {
     // literally do nothing
 }
+
+#define DISABLE_SIGNAL(_signal) \
+    memset(&sa, 0, sizeof(sa)); \
+    sa.sa_handler = do_nothing; \
+    if (-1 == sigaction(_signal, &sa, NULL)) { \
+        perror("Couldn't disable signal"); \
+    } 
+
 
 void stop_server(void) {
     // disable signal handlers
