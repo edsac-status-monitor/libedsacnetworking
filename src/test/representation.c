@@ -6,7 +6,7 @@
  */
 
 #include "config.h"
-#include "representation.h"
+#include "edsac_representation.h"
 #include <stdlib.h> // EXIT_*
 #include <stdio.h>
 #include <assert.h>

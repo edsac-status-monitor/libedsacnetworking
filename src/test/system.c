@@ -7,9 +7,9 @@
 
 // includes
 #include "config.h"
-#include "server.h"
-#include "representation.h"
-#include "sending.h"
+#include "edsac_server.h"
+#include "edsac_representation.h"
+#include "edsac_sending.h"
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>

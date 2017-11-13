@@ -1,6 +1,7 @@
 # make static library target
 lib_LTLIBRARIES = libedsacnetworking.la
-libedsacnetworking_la_SOURCES = src/representation.c src/contrib/cJSON.c include/representation.h include/contrib/cJSON.h src/server.c include/server.h src/sending.c include/sending.h src/timer.c include/timer.h
+libedsacnetworking_la_SOURCES = src/representation.c src/contrib/cJSON.c include/edsac_representation.h include/contrib/cJSON.h src/server.c include/edsac_server.h src/sending.c include/edsac_sending.h src/timer.c include/edsac_timer.h
+include_HEADERS = include/edsac_representation.h include/edsac_sending.h include/edsac_server.h include/edsac_timer.h
 
 # package config file
 pkgconfig_DATA = libedsacnetworking.pc

@@ -7,7 +7,7 @@
 
 // includes
 #include "config.h"
-#include "server.h"
+#include "edsac_server.h"
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>

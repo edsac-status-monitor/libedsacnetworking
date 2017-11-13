@@ -7,20 +7,20 @@
 
 // includes
 #include "config.h"
-#include "server.h"
+#include "edsac_server.h"
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <pthread.h>
-#include "representation.h"
+#include "edsac_representation.h"
 #include <errno.h>
 #include <pthread.h>
 #include <time.h>
 #include <stdio.h>
 #include <assert.h>
-#include "timer.h"
+#include "edsac_timer.h"
 
 /* So what is going on here?
 The server uses signal driven IO so that it is not constantly polling dosens of clients.

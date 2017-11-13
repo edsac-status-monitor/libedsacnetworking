@@ -9,8 +9,8 @@
 #include "config.h"
 #include <stdlib.h>
 #include <assert.h>
-#include "server.h"
-#include "representation.h"
+#include "edsac_server.h"
+#include "edsac_representation.h"
 #include <unistd.h>
 #include <stdio.h>
 

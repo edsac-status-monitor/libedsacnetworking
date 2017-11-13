@@ -7,8 +7,8 @@
 
 // includes
 #include "config.h"
-#include "sending.h"
-#include "server.h"
+#include "edsac_sending.h"
+#include "edsac_server.h"
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -18,7 +18,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <errno.h>
-#include "timer.h"
+#include "edsac_timer.h"
 
 // file descriptor for the TCP connection to the remote host
 static int sending_fd = -1;

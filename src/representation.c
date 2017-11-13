@@ -6,7 +6,7 @@
  */
 
 #include "config.h"
-#include "representation.h"
+#include "edsac_representation.h"
 #include <stdio.h>
 #include <assert.h>
 #include "contrib/cJSON.h"

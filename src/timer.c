@@ -7,7 +7,7 @@
 
 // includes
 #define _POSIX_C_SOURCE 199309L
-#include "timer.h"
+#include "edsac_timer.h"
 #include <signal.h>
 #include <string.h>
 
