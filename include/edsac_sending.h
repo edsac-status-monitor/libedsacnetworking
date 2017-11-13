@@ -14,7 +14,6 @@ extern "C" {
 #endif // _cplusplus
 
 // includes
-#include "config.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <sys/types.h>
