@@ -6,6 +6,6 @@ Name: LibEDSACnetworking
 Description: Networking for the EDSAC status monitor
 Version: @PACKAGE_VERSION@
 Cflags: -I${includedir}
-Libs: -L${libdir} -ledsacnetworking
+Libs: -L${libdir} -ledsacnetworking -lrt
 Requires.private: glib-2.0 >= 2.32
 
