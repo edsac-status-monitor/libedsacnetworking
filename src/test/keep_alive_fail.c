@@ -8,6 +8,7 @@
 // includes
 #include "config.h"
 #include "edsac_server.h"
+#include "edsac_arguments.h"
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>

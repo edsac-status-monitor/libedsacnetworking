@@ -10,6 +10,7 @@
 #include "edsac_server.h"
 #include "edsac_representation.h"
 #include "edsac_sending.h"
+#include "edsac_arguments.h"
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>

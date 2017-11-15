@@ -5,7 +5,7 @@
 AC_PREREQ([2.69])
 
 # project metadata
-AC_INIT([libedsacnetworking], [1.0.0], [tde1g14 soton ac uk])
+AC_INIT([libedsacnetworking], [1.1.0], [tde1g14 soton ac uk])
 
 # put auxiliary files in subdirectories to reduce clutter
 AC_CONFIG_MACRO_DIR([m4])
