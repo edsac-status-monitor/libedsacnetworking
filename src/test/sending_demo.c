@@ -39,6 +39,9 @@ int main(int argc, char** argv) {
         }
         msg.data.software.message = g_string_assign(msg.data.software.message, buf);
         assert(NULL != msg.data.software.message);
+        
+        // remove newline character
+        msg.data.software.message = g_string_overwrite(msg.data.software.message, msg.data.software.message->len - 1, " ");
 
         send_message(&msg);
     }
