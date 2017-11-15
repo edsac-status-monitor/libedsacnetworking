@@ -5,8 +5,8 @@
  * header file for sending.c
  */
 
-#ifndef TEMPLATE_H 
-#define TEMPLATE_H
+#ifndef SENDING_H 
+#define SENDING_H
 
 // link properly with C++
 #ifdef _cplusplus
@@ -35,4 +35,4 @@ void stop_sending(void);
 #ifdef _cplusplus
 }
 #endif // _cplusplus
-#endif // TEMPLATE_H
+#endif // SENDING_H

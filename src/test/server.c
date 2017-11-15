@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
     puts("Listening");
 
     while(true) {
-        sleep(1000);
+        pause();
     }
 
     puts("stopping server");

@@ -1,8 +1,8 @@
 /*
  * Copyright 2017
  * GPL3 Licensed
- * test/sending.c
- * Establishes a sending connection and then sleeps forever
+ * sending_demo.c
+ * Interactive sending of error messages
  */
 
 // includes
@@ -26,14 +26,29 @@ int main(int argc, char** argv) {
 
     puts("Connected");
 
+    Message msg;
+    msg.type = SOFT_ERROR;
+    msg.data.software.message = g_string_new(NULL);
+
+    static char buf[128] = {'\0'};
+
     while(true) {
-        pause();
+        printf("Enter an error message: ");
+        if (fgets(buf, sizeof(buf), stdin) != buf) {
+            buf[0] = '\0';
+        }
+        msg.data.software.message = g_string_assign(msg.data.software.message, buf);
+        assert(NULL != msg.data.software.message);
+
+        send_message(&msg);
     }
 
     perror("Unreachable!");
 
     // never run. Just here incase this is used as an example
+    g_free(msg.data.software.message);
     stop_sending();
 
     return EXIT_FAILURE;
 }
+

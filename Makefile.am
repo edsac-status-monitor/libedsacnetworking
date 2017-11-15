@@ -17,7 +17,7 @@ AM_CFLAGS = -Wall -Wextra -pedantic -Wshadow -Wpointer-arith -Wcast-align -Wwrit
 RT_LIBS = -lrt
 
 # Unit tests
-check_PROGRAMS = representation.test system.test server.test sending.test keep_alive_pass.test keep_alive_fail.test
+check_PROGRAMS = representation.test system.test server.test sending.test keep_alive_pass.test keep_alive_fail.test sending_demo.test
 representation_test_SOURCES = src/test/representation.c
 representation_test_LDADD = libedsacnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
 system_test_SOURCES = src/test/system.c
@@ -26,6 +26,8 @@ server_test_SOURCES = src/test/server.c
 server_test_LDADD = libedsacnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
 sending_test_SOURCES = src/test/sending.c
 sending_test_LDADD = libedsacnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
+sending_demo_test_SOURCES = src/test/sending_demo.c
+sending_demo_test_LDADD = libedsacnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
 keep_alive_pass_test_SOURCES = src/test/keep_alive_pass.c
 keep_alive_pass_test_LDADD = libedsacnetworking.la $(GLIB_LIBS) $(PTHREAD_LIBS) $(RT_LIBS)
 keep_alive_fail_test_SOURCES = src/test/keep_alive_fail.c
