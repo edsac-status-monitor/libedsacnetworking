@@ -17,7 +17,7 @@
 
 // functions
 int main(int argc, char** argv) {
-    struct sockaddr *addr = get_args(&argc, &argv, NULL);
+    struct sockaddr *addr = get_args(&argc, &argv, NULL, NULL);
     assert(NULL != addr);
 
     assert(true == start_sending(addr, sizeof(*addr)));

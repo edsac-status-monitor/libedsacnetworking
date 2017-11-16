@@ -16,37 +16,50 @@
 
 // functions
 
-#define RET_IF_NULL(_x) if (NULL == _x) return NULL
-
-struct sockaddr *get_args(int *argc, char ***argv, GOptionGroup *others) {
+struct sockaddr *get_args(int *argc, char ***argv, GOptionGroup *other_group, GOptionEntry *other_entries) {
     const uint16_t default_port = 2000;
     const char *default_addr = "127.0.0.1";
+
+    if (NULL != other_group) {
+        g_option_group_ref(other_group);
+    }
 
     // place to put the command line arguments we got
     bool use_addr_str = true;
     char *addr_str = NULL;
     gint port = -1;
 
-    // definition of command line arguments
+    GOptionGroup *networking_group = g_option_group_new("networking", "Options relating to networking", "Options relating to networking", NULL, NULL);
+    assert(NULL != networking_group);
+
+    // definition of command line arguments for networking group
     GOptionEntry entries[] = {
         {"address", 'a', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING, &addr_str, "IPv4 Address", "w.x.y.z"},
         {"port", 'p', G_OPTION_FLAG_NONE, G_OPTION_ARG_INT, &port, "TCP Port", "PORT"},
         {NULL}
     };
+    g_option_group_add_entries(networking_group, entries);
 
-    // set up
+    // set up GOptionContext
     GOptionContext *context = g_option_context_new(NULL);
-    RET_IF_NULL(context);
-    g_option_context_add_main_entries(context, entries, NULL);
+    assert(NULL != context);
 
-    if (NULL != others) {
-        g_option_context_add_group(context, others);
+    if (NULL != other_entries) {
+        g_option_context_add_main_entries(context, other_entries, NULL);
+    }
+
+    if (NULL != other_group) {
+        g_option_context_add_group(context, other_group);
     }
 
     // parse command line arguments
     if (!g_option_context_parse(context, argc, argv, NULL)) {
         g_free(addr_str);
         g_option_context_free(context);
+        g_option_group_unref(networking_group);
+        if (NULL != other_group) {
+            g_option_group_unref(other_group);
+        }
         return NULL;
     }
 
@@ -73,6 +86,10 @@ struct sockaddr *get_args(int *argc, char ***argv, GOptionGroup *others) {
         g_free(addr_str);
     }
     g_option_context_free(context);
+    g_option_group_unref(networking_group);
+    if (NULL != other_entries) {
+        g_option_group_unref(other_group);
+    }
 
     return addr;
 }

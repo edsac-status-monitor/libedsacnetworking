@@ -20,7 +20,7 @@ extern "C" {
 // declarations
 
 // sets up a sockaddr structure based on arguments
-struct sockaddr *get_args(int *argc, char ***argv, GOptionGroup *others);
+struct sockaddr *get_args(int *argc, char ***argv, GOptionGroup *other_group, GOptionEntry *other_entries);
 
 // sets up an ip v4 address structure
 // returns NULL on failure. addr is a string representation e.g. "127.0.0.1"
