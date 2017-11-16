@@ -44,6 +44,7 @@ struct sockaddr *get_args(int *argc, char ***argv, GOptionGroup *other_group, GO
     GOptionContext *context = g_option_context_new(NULL);
     assert(NULL != context);
 
+    g_option_context_add_group(context, networking_group);
     if (NULL != other_entries) {
         g_option_context_add_main_entries(context, other_entries, NULL);
     }
