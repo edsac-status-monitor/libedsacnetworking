@@ -34,6 +34,7 @@ Periodically these times are checked against the current time to see if everythi
 #include <stdio.h>
 #include <assert.h>
 #include "edsac_timer.h"
+#include <errno.h>
 
 // stores information about an active connection
 typedef struct {
@@ -41,6 +42,11 @@ typedef struct {
     pthread_mutex_t mutex;
     struct sockaddr_in addr;
     time_t last_keep_alive;
+    /* this is a bit of a hack to get around an issue:
+    pthreads requires a mutex to be unlocked for it to be destroyed.
+    If anything is waiting on it when this unlock occurs (right before destruction) then it gets the lock before the mutex is destroyed
+    this flag causes it to return immediately instead of trusting the mutex lock */
+    bool destroyed;
 } ConnectionData;
 
 // result from reading from a socket (not used externally)
@@ -283,9 +289,6 @@ static void *object_reader_thread(void *arg) {
 static void *report_close_thread(void *arg) {
     ConnectionData *condata = (ConnectionData *) arg;
     
-    // we are done with the fd now
-    pthread_mutex_unlock(&(condata->mutex));
-    
     // allocate the item to go onto the queue
     BufferItem *item = malloc(sizeof(BufferItem));
     if (!item) {
@@ -334,7 +337,9 @@ static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)
 
     // get the exclusive right to do reading as early as we can incase another thread closes the file descriptor
     if (0 != pthread_mutex_lock(&(condata->mutex))) {
-        perror("can't lock reading mux");
+        return;
+    }
+    if (condata->destroyed) { // did we get between the unlock and destroy in free_condata?
         return;
     }
 
@@ -424,6 +429,7 @@ static void connect_handler(__attribute__ ((unused)) int sig, siginfo_t *si, __a
     }
     *key = fd;
 
+    condata->destroyed = false;
     // put it into the connections table
     if (FALSE == g_hash_table_insert(connections_table, key, condata)) {
         puts("ERROR: duplicate entry in connections table!");
@@ -584,8 +590,15 @@ void free_bufferitem(BufferItem *item) {
 
 // free a ConnectionData
 static void free_connectiondata(ConnectionData *condata) {
-    pthread_mutex_lock(&(condata->mutex));
-    pthread_mutex_destroy(&(condata->mutex));
+    puts("about to destroy condata");
+    condata->destroyed = true;
+    pthread_mutex_unlock(&(condata->mutex));
+    // if something jumps in here then it should check the destroyed flag
+    errno = pthread_mutex_destroy(&(condata->mutex));
+    if (0 != errno) {
+        perror("destroy condata mux");
+    }
+    puts("destroyed conddata");
     close(condata->fd);
     free(condata);
 }
