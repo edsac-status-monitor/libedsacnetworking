@@ -76,6 +76,32 @@ static int listen_socket = -1;
 // the timer id
 timer_t timer_id;
 
+// helper for get_connected_list
+static void list_ip_addrs(__attribute__((unused)) gpointer key, gpointer value, gpointer user_data) {
+    assert(NULL != value);
+    assert(NULL != user_data);
+
+    ConnectionData *con_data = value;
+    GSList **list = user_data;
+
+    struct sockaddr_in *list_data = malloc(sizeof(struct sockaddr_in));
+    assert(NULL != list_data);
+    memcpy(list_data, &con_data->addr, sizeof(*list_data));
+
+    *list = g_slist_prepend(*list, list_data); 
+}
+
+// returns a list containing all of the IP addresses in the connections table
+GSList *get_connected_list(void) {
+    GSList *ret = NULL;
+
+    assert(0 == pthread_mutex_lock(&connections_mux));
+    g_hash_table_foreach(connections_table, (GHFunc) list_ip_addrs, &ret);
+    assert(0 == pthread_mutex_unlock(&connections_mux));
+
+    return ret;
+}
+
 // sets up a fd for realtime signal IO using signal sig, handled by handler
 static bool setup_rt_signal_io(int fd, int sig, void (*handler)(int, siginfo_t *, void *)) {
     // establish signal handler for new connections
@@ -311,7 +337,6 @@ static void *report_close_thread(void *arg) {
     g_queue_push_tail(read_buff, (gpointer) item);
     
     pthread_mutex_unlock(&read_buff_mux);
-    puts("connection close added to queue");
 
     destroy_connection(condata);
     return NULL;
@@ -348,10 +373,9 @@ static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)
     // checking si->si_code just seems to report the connection is closed on every signal
     // MSG_PEEK so that the read character is not removed from the read buffer
     ssize_t count = recv(si->si_fd, &buf, 1, MSG_PEEK);
-    int e = errno;
+    //int e = errno;
     if (1 != count) {
-        // BUG: this may report the connection close more than once. si_code, errno and count seem the same each time so I don't know how to tell
-        printf("closed connection. fd=%i si_code=%i errno=%s count=%li\n",si->si_fd, si->si_code, strerror(e), count);
+        //printf("closed connection. fd=%i si_code=%i errno=%s count=%li\n",si->si_fd, si->si_code, strerror(e), count);
 
         // start thread
         pthread_create(&thread, NULL, report_close_thread, (void *) condata); // unlocks the reading mutex
@@ -477,7 +501,6 @@ static void check_keep_alive(__attribute__((unused)) gpointer key, gpointer valu
 
         g_queue_push_tail(read_buff, err);
         pthread_mutex_unlock(&read_buff_mux);
-        puts("error in queue");
     }
 }
 
@@ -590,7 +613,6 @@ void free_bufferitem(BufferItem *item) {
 
 // free a ConnectionData
 static void free_connectiondata(ConnectionData *condata) {
-    puts("about to destroy condata");
     condata->destroyed = true;
     pthread_mutex_unlock(&(condata->mutex));
     // if something jumps in here then it should check the destroyed flag
@@ -598,7 +620,6 @@ static void free_connectiondata(ConnectionData *condata) {
     if (0 != errno) {
         perror("destroy condata mux");
     }
-    puts("destroyed conddata");
     close(condata->fd);
     free(condata);
 }
@@ -624,13 +645,11 @@ void stop_server(void) {
     // disable KEEP_ALIVE check
     stop_timer(timer_id);
 
-    puts("about to close listen socket");
     // close the open socket
     if (-1 != listen_socket) {
         close(listen_socket);
         listen_socket = -1;
     }
-    puts("listen socket closed");
 
     // free up the connection table and close all the active connections
     if (connections_table) {

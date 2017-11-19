@@ -53,6 +53,9 @@ bool start_server(const struct sockaddr *addr, socklen_t addrlen);
 // returns NULL immediately if there is no message to read in
 BufferItem *read_message(void);
 
+// returns a list of IP addresses (sockaddr_in) we are currently connected to
+GSList *get_connected_list(void);
+
 // stop the server safely
 void stop_server(void);
 
