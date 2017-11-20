@@ -488,13 +488,16 @@ static void check_keep_alive(__attribute__((unused)) gpointer key, gpointer valu
 
         // report error and close the connection
         BufferItem *err = malloc(sizeof(BufferItem));
-        if (NULL == err)
+        if (NULL == err) {
+            perror("Couldn't allocate message buffer");
             return;
+        }
         software_error(&(err->msg), "Connection timeout");
-        memcpy(&(err->address), &(condata->addr), sizeof(err->address));
+        memcpy(&(err->address), &(condata->addr.sin_addr), sizeof(err->address));
         err->recv_time = time(NULL);
 
         if (0 != pthread_mutex_trylock(&read_buff_mux)) {
+            perror("Couldn't lock read_buff_mux");
             free_bufferitem(err);
             return;
         }
@@ -594,8 +597,10 @@ bool start_server(const struct sockaddr *addr, socklen_t addrlen) {
 
 // gets a message from the read queue
 BufferItem *read_message(void) {
-    if (0 != pthread_mutex_lock(&read_buff_mux))
+    if (0 != pthread_mutex_lock(&read_buff_mux)) {
+        perror("Can't lock read_buff_mux");
         return NULL;
+    }
 
     BufferItem *ret = (BufferItem *) g_queue_pop_head(read_buff);
     // if this is NULL we should be returning NULL anyway
