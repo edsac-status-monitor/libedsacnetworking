@@ -15,6 +15,13 @@
 #include <unistd.h>
 #include <stdio.h>
 
+// handle CTR+C
+static void sigint_handler(__attribute__((unused)) int sig) {
+    puts(""); // newline
+    stop_sending();
+    exit(EXIT_SUCCESS);
+}
+
 // functions
 int main(int argc, char** argv) {
     struct sockaddr *addr = get_args(&argc, &argv, NULL, NULL);
@@ -26,6 +33,10 @@ int main(int argc, char** argv) {
 
     puts("Connected");
 
+    // SIGINT (CTL+C) handler
+    signal(SIGINT, sigint_handler);
+
+    // continually get and send messages
     Message msg;
     msg.type = SOFT_ERROR;
     msg.data.software.message = g_string_new(NULL);
