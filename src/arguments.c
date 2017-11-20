@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 // functions
 
@@ -61,7 +62,10 @@ struct sockaddr *get_args(int *argc, char ***argv, GOptionGroup *other_group, GO
         if (NULL != other_group) {
             g_option_group_unref(other_group);
         }
-        return NULL;
+
+        puts("Could not parse arguments");
+        puts(g_option_context_get_help(context, TRUE, NULL));
+        exit(EXIT_FAILURE);
     }
 
     // try to use what we got
@@ -75,7 +79,7 @@ struct sockaddr *get_args(int *argc, char ***argv, GOptionGroup *other_group, GO
     }
 
     // try to turn this into a sockaddr
-    struct sockaddr *addr;
+    struct sockaddr *addr = NULL;
     if (use_addr_str) {
         addr = alloc_addr(addr_str, (uint16_t) port);
     } else {
