@@ -64,7 +64,6 @@ struct sockaddr *get_args(int *argc, char ***argv, GOptionGroup *other_group, GO
         }
 
         puts("Could not parse arguments");
-        puts(g_option_context_get_help(context, TRUE, NULL));
         exit(EXIT_FAILURE);
     }
 
