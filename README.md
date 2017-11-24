@@ -9,7 +9,7 @@ GLib2.0 >= 2.32 is required as a dependency so that will need to be installed. O
 
 On debian the following packages are required to build libnetworking:
 ```
-gcc autoconf libglib2.0-dev libtool make
+gcc autoconf libglib2.0-dev libtool make pkg-config
 ```
 
 Compile using
