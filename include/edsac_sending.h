@@ -23,7 +23,7 @@ extern "C" {
 // declarations
 
 // the time between KEEP_ALIVE messages in seconds
-#define KEEP_ALIVE_INTERVAL 1 // reduced for demo. TODO increase back to 10
+#define KEEP_ALIVE_INTERVAL 10 
 
 // addr is the address of the server to which we will report errors
 bool start_sending(const struct sockaddr *addr, socklen_t addrlen);

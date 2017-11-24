@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include "edsac_timer.h"
+#include <assert.h>
 
 // file descriptor for the TCP connection to the remote host
 static int sending_fd = -1;
@@ -92,10 +93,13 @@ bool send_message(const Message *msg) {
 }
 
 void stop_sending(void) {
+    stop_timer(timer);
+
+    assert(0 == pthread_mutex_lock(&fd_mux));
     if (-1 != sending_fd) {
         close(sending_fd);
         sending_fd = -1;
     }
-
-    stop_timer(timer);
+    assert(0 == pthread_mutex_unlock(&fd_mux));
+    assert(0 == pthread_mutex_destroy(&fd_mux));
 }
