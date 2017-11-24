@@ -92,8 +92,10 @@ bool send_message(const Message *msg) {
 }
 
 void stop_sending(void) {
-    if (-1 != sending_fd)
+    if (-1 != sending_fd) {
         close(sending_fd);
+        sending_fd = -1;
+    }
 
     stop_timer(timer);
 }
