@@ -27,6 +27,13 @@ static timer_t timer;
 
 // locking has to be done first but this will unlock
 static bool send_encoded_message(const char* encoded) {
+    // lock mutex
+    if (-1 == pthread_mutex_lock(&fd_mux)) {
+        perror("failed to lock sending mutex");
+        // TODO: memory leak of encoded when this is called from send_message
+        return false;
+    }
+
     // send the encoded message
     size_t expected_count = strnlen(encoded, MAX_ENCODED_LEN);
     ssize_t count = write(sending_fd, encoded, expected_count);
@@ -48,13 +55,6 @@ static bool send_encoded_message(const char* encoded) {
 // called periodically to send a KEEP_ALIVE message
 static void send_keep_alive(__attribute__((unused)) void *compulsory) {
     const char* keep_alive_msg = "{\"version\":2,\"data\":{},\"type\":\"KEEP_ALIVE\"}";
-
-    // if we interrupt the thread owning the mutex then a _lock() would deadlock
-    if (0 != pthread_mutex_trylock(&fd_mux)) {
-        perror("Can't lock mutex");
-        return;
-        // the server allows several missed keep_alive messages before it errors so this is probably fine
-    }
 
     send_encoded_message(keep_alive_msg); // unlocks mutex
 }
@@ -83,13 +83,6 @@ bool send_message(const Message *msg) {
     encode_message(msg, &encoded);
     if (!encoded)
         return false;
-
-    // lock mutex
-    if (-1 == pthread_mutex_lock(&fd_mux)) {
-        perror("failed to lock sending mutex");
-        free(encoded);
-        return false;
-    }
 
     bool ret = send_encoded_message(encoded);    
 
