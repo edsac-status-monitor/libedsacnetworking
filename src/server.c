@@ -436,6 +436,7 @@ static void connect_handler(__attribute__ ((unused)) int sig, siginfo_t *si, __a
     }
 
     condata->fd = fd;
+    condata->destroyed = false;
 
     // get access to connections table
     if (0 != pthread_mutex_lock(&connections_mux)) {
@@ -453,7 +454,6 @@ static void connect_handler(__attribute__ ((unused)) int sig, siginfo_t *si, __a
     }
     *key = fd;
 
-    condata->destroyed = false;
     // put it into the connections table
     if (FALSE == g_hash_table_insert(connections_table, key, condata)) {
         puts("ERROR: duplicate entry in connections table!");
@@ -486,7 +486,7 @@ static void check_keep_alive(__attribute__((unused)) gpointer key, gpointer valu
         inet_ntop(AF_INET, &(condata->addr.sin_addr.s_addr), addr, sizeof(addr));
         printf("No KEEP_ALIVE from %s (fd=%i) for %li seconds!\n", addr, condata->fd, diff);
 
-        // report error and close the connection
+        // report error 
         BufferItem *err = malloc(sizeof(BufferItem));
         if (NULL == err) {
             perror("Couldn't allocate message buffer");
@@ -533,7 +533,7 @@ bool start_server(const struct sockaddr *addr, socklen_t addrlen) {
     // cloexec for security (closes fd on an exec() syscall)
     listen_socket = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
     if (-1 == listen_socket) {
-        perror("start_server: listening");
+        perror("start_server: create socket");
         return false;
     }
 

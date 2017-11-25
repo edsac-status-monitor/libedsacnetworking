@@ -27,7 +27,7 @@ extern "C" {
 // declarations
 
 // how many KEEP_ALIVE messages between checks
-#define KEEP_ALIVE_CHECK_PERIOD 2 
+#define KEEP_ALIVE_CHECK_PERIOD 1 
 
 // how many consecutive failed KEEP_ALIVE checks before an error
 #define KEEP_ALIVE_GRACE 3
