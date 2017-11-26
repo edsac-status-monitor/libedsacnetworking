@@ -292,18 +292,13 @@ static void *object_reader_thread(void *arg) {
     }
     
     // read in every available object
-    while (true) {
-        ReadStatus status = fetch_item(condata);
-        if (ERROR == status) {
-            puts("Read ERROR from remote host\n"); 
-            destroy_connection(condata);
-            pthread_mutex_unlock(&read_buff_mux);
-            return NULL;
-        } else if (END == status) { // we have read the whole buffer
-            break;
-        }
-        // else we had a SUCCESS so continue (the buffer may contain another message)
-    }
+    ReadStatus status = fetch_item(condata);
+    if (ERROR == status) {
+        puts("Read ERROR from remote host\n"); 
+        destroy_connection(condata);
+        pthread_mutex_unlock(&read_buff_mux);
+        return NULL;
+    } 
     
     // clean up before returning
     pthread_mutex_unlock(&read_buff_mux);
@@ -623,7 +618,7 @@ static void free_connectiondata(ConnectionData *condata) {
     // if something jumps in here then it should check the destroyed flag
     errno = pthread_mutex_destroy(&(condata->mutex));
     if (0 != errno) {
-        perror("destroy condata mux");
+        //perror("destroy condata mux");
     }
     close(condata->fd);
     free(condata);
