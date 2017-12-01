@@ -9,9 +9,6 @@
 The server uses signal driven IO so that it is not constantly polling dosens of clients.
 We use two signal handlers: CONNECT_SIG for when a new client connects and READ_SIG for when new IO is available on a socket
 
-The handler for READ_SIG is quite complex. It can only access shared resources asynchronously by spawning worker threads incase we are interupting code
-already has the control mutex locked (in which case a deadlock would occur if we operated synchronously).
-
 When a message is read in it is added to the read_buff queue. Items are requested and returned from this queue at some later time using read_message()
 
 Also, clients are expected to periodically send KEEP_ALIVE messages so that we know that they are running. The time of the most recent one of these is stored in the connection table.
@@ -29,7 +26,6 @@ Periodically these times are checked against the current time to see if everythi
 #include <pthread.h>
 #include "edsac_representation.h"
 #include <errno.h>
-#include <pthread.h>
 #include <time.h>
 #include <stdio.h>
 #include <assert.h>
@@ -269,22 +265,8 @@ static void destroy_connection(ConnectionData *condata) {
     pthread_mutex_unlock(&connections_mux);
 }
 
-// thread to read in all of the objects waiting in a buffer
-/* the actual reading is done in its own thread for the following situation:
- *    1. some normal code has read_buff_mux locked
- *    2. io_handler signal tries to lock read_buff_mux
- *    3. deadlock
- *
- * Using s different thread for the io_handler means that it can block waiting for read_buff_mux without creating a deadlock
- * We handle mutexes out here to force the program to behave more serially:
- *    For example, if the read queue was only locked while it was being used, the system test becomes a race to see if this thread can finish
- *      adding to the queue before the queue item is requested by the test. This way the queue item request can't jump in so easily
- *      (theoretically it could jump in before this thread has had any chance to lock the mutex but in practice this seems not to happen. 
- *      I can't see a better solution than this because we can't lock the mutex in the signal handler because of the above deadlock)
- */
-static void *object_reader_thread(void *arg) {
-    ConnectionData *condata = (ConnectionData *) arg;
-    
+// read in an object waiting in a buffer
+static void *object_reader(ConnectionData *condata) {
     // get exclusive access to read_buff
     if (0 != pthread_mutex_lock(&read_buff_mux)) {
         perror("object reader could not get the read_buff mutex");
@@ -292,18 +274,13 @@ static void *object_reader_thread(void *arg) {
     }
     
     // read in every available object
-    while (true) {
-        ReadStatus status = fetch_item(condata);
-        if (ERROR == status) {
-            puts("Read ERROR from remote host\n"); 
-            destroy_connection(condata);
-            pthread_mutex_unlock(&read_buff_mux);
-            return NULL;
-        } else if (END == status) { // we have read the whole buffer
-            break;
-        }
-        // else we had a SUCCESS so continue (the buffer may contain another message)
-    }
+    ReadStatus status = fetch_item(condata);
+    if (ERROR == status) {
+        puts("Read ERROR from remote host\n"); 
+        destroy_connection(condata);
+        pthread_mutex_unlock(&read_buff_mux);
+        return NULL;
+    } 
     
     // clean up before returning
     pthread_mutex_unlock(&read_buff_mux);
@@ -311,10 +288,8 @@ static void *object_reader_thread(void *arg) {
     return NULL;
 }
 
-// another thread for reporting a connection close
-static void *report_close_thread(void *arg) {
-    ConnectionData *condata = (ConnectionData *) arg;
-    
+// for reporting a connection close
+static void *report_close(ConnectionData *condata) {
     // allocate the item to go onto the queue
     BufferItem *item = malloc(sizeof(BufferItem));
     if (!item) {
@@ -344,27 +319,30 @@ static void *report_close_thread(void *arg) {
 
 // realtime signal handler for when IO is available on a connection with a client
 static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)) siginfo_t *si, __attribute__ ((unused)) void *ucontext) {
-    pthread_t thread;
-
+    /* locking mutexes in something which can interupt code which already has the mutex locked may seem to be begging for deadlock
+     *   but in practice I was unable to reproduce this deadlock so we will do it here instead of a different thread (the old solution) for performance reasons
+     */
     // look up the file descriptor in the connections table
     if (0 != pthread_mutex_lock(&connections_mux)) {
-        perror("couldn't lock connections table");
+//        perror("Couldn't lock connections table");
         return;
     }
 
     ConnectionData *condata = g_hash_table_lookup(connections_table, &(si->si_fd));
     pthread_mutex_unlock(&connections_mux);
     if (NULL == condata) {
-        printf("%i not in table\n", si->si_fd);
+//        printf("%i not in table\n", si->si_fd);
         return;
     }
     assert(si->si_fd == condata->fd);
 
     // get the exclusive right to do reading as early as we can incase another thread closes the file descriptor
     if (0 != pthread_mutex_lock(&(condata->mutex))) {
+//        perror("condatamux");
         return;
     }
     if (condata->destroyed) { // did we get between the unlock and destroy in free_condata?
+//        puts("condatamux dead");
         return;
     }
 
@@ -373,19 +351,16 @@ static void io_handler(__attribute__ ((unused)) int sig, __attribute__ ((unused)
     // checking si->si_code just seems to report the connection is closed on every signal
     // MSG_PEEK so that the read character is not removed from the read buffer
     ssize_t count = recv(si->si_fd, &buf, 1, MSG_PEEK);
-    //int e = errno;
+//    int e = errno;
     if (1 != count) {
-        //printf("closed connection. fd=%i si_code=%i errno=%s count=%li\n",si->si_fd, si->si_code, strerror(e), count);
+//        printf("closed connection. fd=%i si_code=%i errno=%s count=%li\n",si->si_fd, si->si_code, strerror(e), count);
 
-        // start thread
-        pthread_create(&thread, NULL, report_close_thread, (void *) condata); // unlocks the reading mutex
-        pthread_detach(thread);
+        report_close(condata);
         return;
     }
 
-    // do the actual reading in a different thread (see comment on thread function)
-    pthread_create(&thread, NULL, object_reader_thread, (void *) condata); // this thread unlocks the reading mux when it is done
-    pthread_detach(thread);
+    // do the actual reading 
+    object_reader((void *) condata);
 }
 
 // realtime signal handler for when there is a connection to the listening socket
@@ -623,7 +598,7 @@ static void free_connectiondata(ConnectionData *condata) {
     // if something jumps in here then it should check the destroyed flag
     errno = pthread_mutex_destroy(&(condata->mutex));
     if (0 != errno) {
-        perror("destroy condata mux");
+        //perror("destroy condata mux");
     }
     close(condata->fd);
     free(condata);
