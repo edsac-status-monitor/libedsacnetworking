@@ -27,12 +27,6 @@ static void strict_sleep(unsigned int left_to_sleep) {
     }
 }
 
-// signal handler or SIGTERM to clean up the sender process
-static void sigterm_cleanup(__attribute__((unused)) int compulsory) {
-    perror("Client got sigterm\n");
-    stop_sending();
-}
-
 // runs a server and client long enough to be sure that no keep_alive errors are being run
 int main(void) {
     // start server
@@ -40,28 +34,9 @@ int main(void) {
     assert(NULL != addr);
     assert(true == start_server(addr, sizeof(*addr)));
 
-    // we need the server and sender to live in different processes because they both use SIGALRM:
-    pid_t child = fork();
-    switch(child) {
-        case -1:
-            perror("Fork failed");
-            return EXIT_FAILURE;
-        case 0:
-            puts("Child started");
-            // start sender
-            assert(true == start_sending(addr, sizeof(*addr)));
-            free(addr);
-            // set up a signal handler for sigterm to clean up
-            signal(SIGTERM, sigterm_cleanup);
-            // wait for the main process to kill us
-            while(true) {
-                pause();
-            }
-            return EXIT_FAILURE; // we shouldn't get here
-        default:
-            // still in server process. Continue:
-            free(addr);
-    }
+    // start sender
+    assert(true == start_sending(addr, sizeof(*addr)));
+    free(addr);
 
     // wait long enough that a keep alive failure would have occured if no KEEP_ALIVE messages were sent
     strict_sleep(TEST_PAUSE);
@@ -70,10 +45,7 @@ int main(void) {
     assert(NULL == read_message());
     puts("keep_alive_pass succeeded");
 
-    // kill the child process
-    kill(child, SIGTERM);
-
+    stop_sending();
     stop_server();
-    puts("Server stopped");
     return EXIT_SUCCESS;
 }
